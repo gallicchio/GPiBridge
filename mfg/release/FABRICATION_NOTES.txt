@@ -1,0 +1,40 @@
+GPiBridge rev A: FABRICATION NOTES (written 2026-10-06; design date 2026-10-06)
+
+BOARD (upload GPiBridge_gerbers.zip)
+  60.0 x 25.5 mm, 4 layers, 1.6 mm, stackup JLC04161H-7628 (impedance control not needed).
+  Surface finish: ENIG (the RP2354A is a 0.4 mm pitch QFN-60).  Mask green, silkscreen white, both sides.
+  Smallest track and gap 0.127 mm (the ribbon from the RP2354A); vias 0.45/0.25 mm, and Raspberry Pi's 0.6/0.25.
+  'Remove order number': yes (there is no room for it).  Via covering: tented.
+  Files: GPiBridge-B_Cu.gbr, GPiBridge-B_Mask.gbr, GPiBridge-B_Paste.gbr, GPiBridge-B_Silkscreen.gbr, GPiBridge-Edge_Cuts.gbr, GPiBridge-F_Cu.gbr, GPiBridge-F_Mask.gbr, GPiBridge-F_Paste.gbr, GPiBridge-F_Silkscreen.gbr, GPiBridge-In1_Cu.gbr, GPiBridge-In2_Cu.gbr, GPiBridge-NPTH-drl_map.gbr, GPiBridge-NPTH.drl, GPiBridge-PTH-drl_map.gbr, GPiBridge-PTH.drl, GPiBridge-job.gbrjob
+
+ORDER: 5 boards, 2 of them assembled (JLCPCB's minimums: 5 boards, 2 assembled).
+
+ASSEMBLY (JLCPCB economic PCBA, top side only)
+  Upload GPiBridge_bom.csv and GPiBridge_cpl.csv: 60 placements, 30 BOM lines, 8 Extended (C160389, C25100, C165948, C42411119, C41378174, C882412, C2671348, C20625731).
+  GPiBridge_cpl_native.csv has KiCad's own rotations and positions, for comparison.
+  Moved in the CPL to JLCPCB's own origin for the part, so it lands on its pads: J1 by (+1.572, +0.000) mm.
+  Every polarized part's rotation has been read right in a preview (PLACEMENT_CHECKS.txt).
+  Not fitted by JLCPCB (hand_solder.csv): J2, the IEEE-488 plug (NorComp 111-024-113L001 or any 24-pin male,
+  DIP solder, 2.16 mm pitch).  Solder it last, from the top, with the board in the housing's lower half.
+  Test points TP1, TP2, TP3, TP4, TP5 are bare pads; H1, H2 are M2 holes (no hardware).
+
+COST ESTIMATE for 5 boards, 2 assembled (JLCPCB list prices as of 2026; parts from their live API):
+  PCBs, 4-layer ENIG, 5               ~$23  (about $15 less with lead-free HASL)
+  assembly setup, stencil, Extended, THT ~$37
+  assembly, 240 joints a board (+4 THT) x 2   ~$1
+  parts for 2 boards                   $20.82
+  TOTAL before shipping and duty       ~$82  (~$41 an assembled board; the other 3 bare boards
+  are spares, for parts by hand)
+  JLCPCB's own quote (the cart, 2026-10-06): $24.80 PCBs + $60.56 assembly = $85.36; this model is
+  $1.8 off on the PCBs and $1.7 on assembly.
+  (US import: JLCPCB collects duty under DDP; budget 35-90% of the goods' value, plus shipping.)
+  Not in that order, per adapter: the IEEE-488 plug (NorComp 111-024-113L001, Digi-Key $4.22 each),
+  the two housing parts (JLC3DP MJF PA12, about 7.5 g at $0.275/g: about $3 with their minimums),
+  two M2 x 10 thread-forming screws.  A finished adapter, of these first 2: about $48; in a run of
+  5 assembled, about $30.
+
+THIN STOCK (under 10x what 2 boards need, or under 100): C2671348 SN75161BDWR stock 90 need 2
+
+Checks passed: DRC clean (DRC: 0 items (0 violations, 0 unconnected, 0 parity)); 22 filled zone polygons in the file; every SMD part coded;
+every code's JLCPCB description matches its value and package.
+Land patterns: FOOTPRINT_CHECK.txt (mfg/footprint_check.py: no part wants a hole; 5 note(s) to read).

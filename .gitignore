@@ -1,0 +1,43 @@
+# Scratch space for ./build.py.  Everything else the build makes (hardware/,
+# release/, docs/images/, enclosure STLs) is committed, so the design can be
+# reviewed and ordered without building it; `./build.py --clean` removes it.
+build/
+
+# Copyrighted reference material, fetched locally and never committed.
+datasheets/
+reference/
+
+# The housing's intermediates (enclosure/build.py writes them; the STEP and STL
+# files beside them are committed).
+enclosure/out/params.json
+enclosure/out/gpibridge_board.step
+enclosure/out/gpibridgelite_board.step
+
+# Firmware build products and the fetched Pico SDK.
+firmware/build/
+firmware/.deps/
+firmware/external/
+# The host tests and the bus recordings they write (firmware/test/Makefile).
+firmware/test/test_wire
+firmware/test/test_prologix
+firmware/test/out/
+
+# KiCad writes these while a project is open.
+*.kicad_prl
+fp-info-cache
+*-backups/
+~*.lck
+*.lck
+
+# JLCPCB's parts data and EasyEDA's land patterns, cached by tools/jlc_api.py and
+# mfg/footprint_check.py: theirs, not ours to publish, and fetched again when stale.
+tools/jlc_cache.json
+mfg/jlc_footprint_cache.json
+
+# Python.
+__pycache__/
+*.py[cod]
+
+# Questions and answers between Jason and Claude, while working.
+QUESTIONS.md
+ANSWERS.md

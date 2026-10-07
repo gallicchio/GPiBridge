@@ -1,0 +1,2 @@
+Designator,Value,Footprint,Why
+J2,IEEE-488,IEEE488_Plug_24P_P2.16mm_DIP_Solder,"the IEEE-488 plug: JLCPCB holds none (NorComp's is C5470282, pre-order only), and it goes through the housing's base before it is soldered"

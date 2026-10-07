@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "GPiBridge") (type "KiCad") (uri "${KIPRJMOD}/lib/GPiBridge.kicad_sym") (options "") (descr "Every symbol GPiBridge uses"))
+)

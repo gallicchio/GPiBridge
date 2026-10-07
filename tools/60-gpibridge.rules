@@ -1,0 +1,18 @@
+# udev rules for GPiBridge on Linux.  Install:
+#   sudo cp tools/60-gpibridge.rules /etc/udev/rules.d/ && sudo udevadm control --reload
+# then unplug and plug the adapter in again.
+#
+# 1209:0001 is pid.codes' test PID, which GPiBridge uses until it has its own.
+# - picotool may use its reset interface ("picotool reboot -f -u"), and the
+#   RP2350's ROM bootloader (2e8a:000f) for "picotool load", without sudo;
+# - no USB autosuspend: when no program has a port open, Linux power managers
+#   (TLP, powertop --auto-tune) may suspend the adapter, and the firmware then
+#   switches the GPIB transceivers off, so instruments drop back to local.
+# - ModemManager leaves the serial port alone (it can probe new ttyACM ports
+#   with "AT" commands, which would go to the instrument).
+# The serial ports (/dev/ttyACM*) need the "dialout" group, as for any USB serial.
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="0001", MODE="0660", TAG+="uaccess"
+# ModemManager must not probe the serial port: it would send AT commands to the instrument
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="0001", ENV{ID_MM_DEVICE_IGNORE}="1"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="1209", ATTR{idProduct}=="0001", TEST=="power/control", ATTR{power/control}="on"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2e8a", ATTRS{idProduct}=="000f", MODE="0660", TAG+="uaccess"

@@ -1,0 +1,4 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "GPiBridge") (type "KiCad") (uri "${KIPRJMOD}/lib/GPiBridge.pretty") (options "") (descr "Every footprint GPiBridge uses"))
+)

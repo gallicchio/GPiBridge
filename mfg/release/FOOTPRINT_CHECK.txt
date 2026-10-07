@@ -1,0 +1,57 @@
+FOOTPRINT vs ORDERED PART -- does the part fit the copper?
+=========================================================
+
+board  ../hardware/GPiBridge.kicad_pcb
+BOM    release/GPiBridge_bom.csv
+run    2026-10-06T21:42:45-07:00
+68 footprint(s) placed, 132 drill(s) on the board
+
+  ok C1525       C_0402_1005Metric                            C0402              14 placement(s)
+  ok C25076      R_0402_1005Metric                            R0402              4 placement(s)
+  ok C25744      R_0402_1005Metric                            R0402              4 placement(s)
+  ok C52923      C_0402_1005Metric                            C0402              4 placement(s)
+  ok C23733      C_0402_RPi                                   C0402              1 placement(s)
+  ok C23733      C_0402_RPi_wide                              C0402              2 placement(s)
+  ok C11702      R_0402_1005Metric                            R0402              2 placement(s)
+  ok C1548       C_0402_1005Metric                            C0402              2 placement(s)
+  ok C160389     JST_SH_BM03B-SRSS-TB_1x03-1MP_P1.00mm_Vertic CONN-SMD-3P-P1.00_ 2 placement(s)
+  ok C25100      R_0402_1005Metric                            R0402              2 placement(s)
+  ok C25104      R_0402_1005Metric                            R0402              2 placement(s)
+  ok C25905      R_0402_1005Metric                            R0402              2 placement(s)
+  !! C15127      SOT-23                                       SOT-23_L2.9-W1.3-P 1 placement(s)
+       land  worst pad-centre miss 0.282 mm (pad 3) at 180 deg, 3 pad(s) matched by name
+  ok C15195      C_0402_1005Metric                            C0402              1 placement(s)
+  !! C165948     USB_C_Receptacle_HRO_TYPE-C-31-M-12          USB-C_SMD-TYPE-C-3 1 placement(s)
+       datum their origin sits at (-0.000, -1.572) mm in our footprint; the JLCPCB CPL is moved there
+  ok C19702      C_0603_1608Metric                            C0603              1 placement(s)
+  ok C20625731   Crystal_SMD_3225-4Pin_3.2x2.5mm              CRYSTAL-SMD_4P-L3. 1 placement(s)
+  ok C2296       LED_0805_2012Metric                          LED0805-R-RD       1 placement(s)
+  ok C2297       LED_0805_2012Metric                          LED0805-R-RD       1 placement(s)
+  ok C25105      R_0402_RPi                                   R0402              1 placement(s)
+  ok C25741      R_0402_1005Metric                            R0402              1 placement(s)
+  ok C25867      R_0402_1005Metric                            R0402              1 placement(s)
+  ok C25900      R_0402_1005Metric                            R0402              1 placement(s)
+  ok C2671348    SOIC-20W_7.5x12.8mm_P1.27mm                  SOIC-20_L12.8-W7.5 1 placement(s)
+  !! C41378174   RP2350A_QFN-60_7x7mm_P0.4mm_RPi              QFN-60_L7.0-W7.0-P 1 placement(s)
+       PADS  part has 61 pad position(s), footprint has 69
+  !! C42411119   L_Abracon_AOTA-B201610_RPi                   IND-SMD_L2.0-W1.6_ 1 placement(s)
+       land  worst pad-centre miss 0.299 mm (pad 2) at 0 deg, 2 pad(s) matched by name
+  ok C5446       SOT-23-3                                     SOT-23-3_L2.9-W1.6 1 placement(s)
+  ok C720477     SW_SPST_TS-1088-xR020                        SW-SMD_L3.9-W3.0-P 1 placement(s)
+  !! C84256      LED_0805_2012Metric                          LED0805-RD         1 placement(s)
+       land  worst pad-centre miss 0.162 mm (pad 2) at 0 deg, 2 pad(s) matched by name
+  ok C8545       SOT-23                                       SOT-23-3_L2.9-W1.3 1 placement(s)
+  ok C882412     SOIC-20W_7.5x12.8mm_P1.27mm                  SOIC-20_L12.8-W7.5 1 placement(s)
+
+worth a look: datum x1, land x3
+  land  a pad centre out by less than half a millimetre
+  datum the two libraries measure from different zeroes, and
+        JLCPCB places THEIR zero where the CPL says: the JLCPCB
+        CPL is moved by it (make_release.py), the native one not
+  names the pads line up but the pin NUMBERS disagree
+
+PROBLEMS: PADS x1
+
+HOLE is a stop-the-order problem: the part cannot sit down on the
+copper at all, and no amount of paste fixes it.  PADS and LAND want
+a human with the two drawings side by side.

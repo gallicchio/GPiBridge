@@ -1,0 +1,22 @@
+GPiBridge rev A: PLACEMENT CHECKS for JLCPCB's preview
+
+MOVED in GPiBridge_cpl.csv to where JLCPCB's library puts the part's origin (their
+drawing's zero is not KiCad's; FOOTPRINT_CHECK.txt's 'datum').  In the preview each
+should sit squarely on its pads.  If one sits off them by about the same distance
+the other way, their library has changed: say so, and it goes into the code.
+
+  J1     C165948    USB_C_Receptacle_HRO_TYPE-C-31-M-12          moved (+1.572, +0.000) mm (x right, y up)
+
+The CPL's rotations are KiCad's plus mfg/jlc_rotation.py's corrections.  Any part
+listed below has not yet been seen right in a preview: its correction is PREDICTED
+from JLCPCB's own drawing of the part, by pin number or by polarity mark
+(jlc_rotation.py says how; the method has been right on every top-side part read
+so far, GPiBridge's eleven included).  In the preview, check each one's pin 1 or
+polarity mark (JLCPCB's dot) against the board, write down any part that is wrong
+and by how much, and put what you saw into jlc_rotation.py.
+
+Not yet seen right in a preview:
+  (none: every polarized part's rotation has been read in a preview)
+
+Read right in a preview already: D1 D2 D3 J1 J3 J4 L1 Q1 Q2 U1 U2 U3 U4
+No orientation to get wrong (two pads, or symmetric): C_0402_1005Metric, C_0402_RPi, C_0402_RPi_wide, C_0603_1608Metric, Crystal_SMD_3225-4Pin_3.2x2.5mm, R_0402_1005Metric, R_0402_RPi, SW_SPST_TS-1088-xR020

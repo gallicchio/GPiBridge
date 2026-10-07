@@ -1,0 +1,12 @@
+Housing against each board's 3D model (every part, KiCad's STEP export)
+
+GPiBridge, in gpibridge_base and gpibridge_lid:
+  no overlap: nothing on the board touches either part
+GPiBridge Lite, in gpibridge_base and gpibridge_lite_lid:
+  no overlap: nothing on the board touches either part
+
+NorComp's own model of the plug (reference/111-024-113L001.STEP), flange on the base's face:
+  no overlap
+  its body to the base's opening: 0.30 mm at the closest
+
+M2 x 8 screws: 1.70 mm of thread in the base's plate, the tip 1.30 mm above the pilot hole's bottom
