@@ -233,7 +233,9 @@ Raspberry Pi's "Hardware design with RP2350" asks for its regulator layout to be
 copied exactly. `gen/rpi_minimal/` holds their footprints, zones and vias, extracted
 from the MIT-licensed RP2350A Minimal design and turned with the chip. The same goes
 for:
-- L1, the Abracon AOTA inductor, whose polarity dot faces as on their board;
+- L1, the Abracon AOTA inductor, whose polarity dot faces as on their board (the design keeps it;
+  rev A was built with an unpolarised TDK VLS201612HBX-3R3M-1, C2042572, because JLCPCB's shelf ran
+  out after the order: see risk 8);
 - the crystal circuit;
 - the 27 Ω USB resistors.
 
@@ -363,6 +365,13 @@ about it, and what is left.
    `tools/60-gpibridge.rules` turns both off for the adapter.
 8. **L1 the wrong way round.** The regulator still works, with a little more switching
    noise near VREG_AVDD. The preview check covers it (item 1).
+   - Rev A has this case by construction: on 2026-10-18, after the order, JLCPCB ran out of the
+     AOTA (3 left for 4 boards) and asked for a replacement; Jason chose the TDK
+     VLS201612HBX-3R3M-1, C2042572 (3.3 µH, 1.57 A, 174 mΩ, the same 2016 land, 1.2 mm tall,
+     no polarity mark, so its winding is random on the reel). The design keeps the AOTA; the
+     bring-up's scope on TP3 (1.1 V) under load is what says whether the orientation matters
+     here, at this board's tens of milliamps. Next order: the AOTA's stock on the day, and the
+     same substitution if it is short.
 9. **ESD on the GPIB contacts.** There is no TVS array, and TI's 1995 datasheets give
    no ESD rating for the bus pins. The contacts sit recessed inside the D shell. Add
    an array only if a board dies this way.

@@ -1125,3 +1125,31 @@ They hadn't been renamed. They are now, in both releases:
 - `CLAUDE_PCB.md` has the naming rule now.
 
 The changes are staged in git, not committed.
+
+## Prompt 11
+
+"Oh no, recent email: ... Due to insufficient stock of C42411119, we have enabled the "Replace Parts"
+function for your order SMT026100760574 ..." (JLCPCB, 2026-10-18), then: "I went with C2042572. But
+keep the design itself the same, noting that we may have to change it at the last minute next time."
+
+## Response 11 2026-10-18 08:20 - 08:50 Claude Fable 5.1
+
+C42411119 is L1, the Abracon AOTA 3.3 µH inductor of the RP2354A's core regulator, on both GPiBridge
+boards (not on the Costas board, which the email first looked like).  JLCPCB's shelf had 3 on the morning
+of the email for the 4 assembled boards; 347 when the release was costed on 2026-10-08.  Unpopulated is
+not an option (no 1.1 V core supply), so a replacement: Raspberry Pi's design guide specifies only 3.3 µH
+in the 2016 size, and the AOTA exists because they had Abracon add a polarity dot (a wrong-way coil's
+stray field upsets the output capacitor and the regulation under load); DESIGN_NOTES risk 8 already
+accepted the wrong-way case.  tools/jlc_api.py listed the shelf's 3.3 µH 2016 parts; the pick was the TDK
+VLS201612HBX-3R3M-1, C2042572 (1.57 A, 174 mΩ against the AOTA's 2.4 A, 115 mΩ; the same land; 1.2 mm
+tall; no polarity mark), and Jason chose it in the Replace Parts dialog.
+
+The design is unchanged: gen/parts.py still names the AOTA, with a note that rev A was built with
+C2042572 and that the next order should expect to substitute again; DESIGN_NOTES §2.8 and risk 8 record
+it, and risk 8 says what the bring-up measures (TP3's ripple under load); BRINGUP.md stage 0 says there
+is no dot to look for on rev A and stage 1 names the measurement; README's status says so; the rotation
+table carries a comment (the TDK has no correction to read).  The lesson (a line can run out after the
+order; Replace Parts is in Order History; the API lists the shelf in a minute; keep the design's part and
+record the substitution) is in CLAUDE_PCB.md section 3, here and in OpticsPCBs.  The second GPiBridge order
+(the Lite shares L1) may get the same email: the same answer.  Response 10's staged renames were
+committed first.

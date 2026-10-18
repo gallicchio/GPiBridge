@@ -67,7 +67,10 @@ received** (2026-10-06: 5 boards of each, 2 of them assembled). Both pass every 
 are in `mfg/release/` and `mfg/release-lite/`, and the housing (one base, a lid for each)
 in `enclosure/out/`. The firmware builds and passes its host tests against a simulated
 instrument, for both boards' pin layers, and sigrok's own IEEE-488 decoder reads their
-simulated bus traffic correctly. Nothing has run on real hardware yet. `BRINGUP.md` is
+simulated bus traffic correctly. Nothing has run on real hardware yet. After the order
+JLCPCB ran out of L1 (the Abracon AOTA inductor) and rev A is built with a TDK
+VLS201612HBX-3R3M-1 instead, chosen on 2026-10-18 in their Replace Parts dialog; the design
+keeps the AOTA (`DESIGN_NOTES.md` risk 8). `BRINGUP.md` is
 the plan for the first boards, and the shopping list.
 
 ## Using it

@@ -152,6 +152,8 @@ JLC_ROTATION_BY_PART = {
     "C5446": (180, "read", "XC6206, U4: as Q1"),
     "C160389": (180, "read", "BM03B, J3 and J4: JLCPCB's pin 1 is at the right where KiCad's is at the "
                                   "left; their dot is at pin 1"),
+    # Rev A was BUILT with C2042572 (TDK VLS201612HBX-3R3M-1, no polarity mark, no correction to read),
+    # JLCPCB's substitution after the order (2026-10-18); the entry below stays for the AOTA the design names.
     "C42411119": (180, "read", "AOTA inductor, L1, by its polarity dot: JLCPCB draws the dot at their "
                                     "pad 2, Raspberry Pi's footprint at pad 1.  By pad number it would be 0, "
                                     "with the dot at the wrong end"),

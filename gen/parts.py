@@ -42,7 +42,11 @@ PARTS = {
     "Y12M": P("Crystal_GND24", "Crystal_SMD_3225-4Pin_3.2x2.5mm", "C20625731", "ABM8-272-T3", "12MHz",
               ["ABM8-272-T3", "12MHz"], "the crystal Raspberry Pi specifies for the RP2350"),
     "L3U3": P("L", "L_Abracon_AOTA-B201610_RPi", "C42411119", "AOTA-B201610S3R3-101-T", "3.3uH",
-              ["AOTA-B201610S3R3-101-T"], "polarity-marked inductor for the RP2350's core regulator"),
+              ["AOTA-B201610S3R3-101-T"], "polarity-marked inductor for the RP2350's core regulator.  The design "
+              "keeps it, but JLCPCB's shelf is thin (347 on 2026-10-08, 3 on 2026-10-18, after the order was placed): "
+              "rev A was built with TDK VLS201612HBX-3R3M-1, C2042572 (3.3 uH, 1.57 A, 174 mOhm, 2016, unpolarised), "
+              "chosen in the order's Replace Parts dialog.  Expect to substitute again at the last minute; "
+              "tools/jlc_api.py '3.3uH 2016' lists the shelf"),
     "USBC": P("USB_C_Receptacle_USB2.0_16P", "USB_C_Receptacle_HRO_TYPE-C-31-M-12", "C165948",
               "TYPE-C-31-M-12", "USB-C", ["TYPE-C-31-M-12"], "built right on the Lorenz board; datum known"),
     "JSTSH3": P("Conn_Debug_3", "JST_SH_BM03B-SRSS-TB_1x03-1MP_P1.00mm_Vertical", "C160389",

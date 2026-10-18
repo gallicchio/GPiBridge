@@ -159,6 +159,18 @@ GPSDO, Icepi, Lorenz and ECP5.
   under DDP, which they band at 35-90% of the goods' value. Price boards with shipping
   and duty.
 
+* **A line can run out AFTER the order is placed.** GPiBridge's L1 (Abracon AOTA 3.3 µH,
+  C42411119): 347 on JLCPCB's shelf when the release was costed (2026-10-08), the order placed
+  2026-10-06 with "stock >= the order" passing, and on 2026-10-18 an email: "Due to insufficient
+  stock of C42411119, we have enabled the 'Replace Parts' function for your order"; 3 left for 4
+  boards.  The fix is in Order History (Replace Parts: pick one, or leave it unpopulated); nothing
+  is re-uploaded.  Before answering, `tools/jlc_api.py` with a free-text search ("3.3uH 2016")
+  lists the shelf with stock, Isat, DCR and package in a minute, and the datasheet or the
+  vendor's design guide says what the part has to be (here: 3.3 µH, 2016 land, Isat > 1 A; the
+  AOTA's only special property was a polarity dot).  Keep the design's part and record the
+  substitution where the part is named (gen/parts, the design notes' risk list, the bring-up's
+  check of what the part affects, the README's status), so the next order expects it.
+
 ## 4. Schematics: the Art of Electronics standard
 
 Jason worked with Paul Horowitz. The bar is a schematic drawn so that every question a

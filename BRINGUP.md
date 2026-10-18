@@ -40,7 +40,9 @@ works on this PC, through the adapter's USB port and the Debug Probe. Nothing is
 soldered until stage 2.
 
 **Stage 0, before power (you, 5 minutes).** Look at the parts listed in
-`mfg/release/PLACEMENT_CHECKS.txt`: chip pin 1 marks, LED cathodes, L1's dot. Install
+`mfg/release/PLACEMENT_CHECKS.txt`: chip pin 1 marks, LED cathodes, L1's dot (rev A's L1 is
+the unpolarised TDK VLS201612HBX-3R3M-1 substituted by JLCPCB after the order, DESIGN_NOTES.md
+risk 8: no dot to look for). Install
 `tools/60-gpibridge.rules` (once per PC).
 
 **Stage 1, the bare board (no plug, no housing).**
@@ -55,7 +57,11 @@ soldered until stage 2.
   - checks that USB enumerates, and reads `++t status`;
   - measures the start-up time (`usb_ready_ms`);
   - checks the 3.3 V, 1.1 V and switched 5 V test points with the scope, if you put
-    probes on TP2-TP4.
+    probes on TP2-TP4. The 1.1 V rail's ripple at the regulator's switching rate, idle and
+    under load (USB enumerated, the GPIB drivers on), is the measurement for rev A's
+    substituted, unpolarised L1: Raspberry Pi's note says a wrong-way coil degrades the
+    regulation; if the rail holds within its band and the ripple stays in the millivolts, the
+    AOTA's dot was never needed at this current.
 - Done: the firmware loads, enumerates and reports itself; the currents and rails are as
   in `HANDBOOK.md` §1. Claude can now rebuild and reload the firmware by itself as often
   as it likes.
