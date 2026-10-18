@@ -1,4 +1,4 @@
-GPiBridgeLite rev A: FABRICATION NOTES (written 2026-10-06; design date 2026-10-06)
+GPiBridgeLite rev A: FABRICATION NOTES (written 2026-10-08; design date 2026-10-06)
 
 BOARD (upload GPiBridgeLite_gerbers.zip)
   60.0 x 25.5 mm, 4 layers, 1.6 mm, stackup JLC04161H-7628 (impedance control not needed).
@@ -10,8 +10,8 @@ BOARD (upload GPiBridgeLite_gerbers.zip)
 ORDER: 5 boards, 2 of them assembled (JLCPCB's minimums: 5 boards, 2 assembled).
 
 ASSEMBLY (JLCPCB economic PCBA, top side only)
-  Upload GPiBridgeLite_bom.csv and GPiBridgeLite_cpl.csv: 62 placements, 21 BOM lines, 6 Extended (C160389, C25100, C165948, C42411119, C41378174, C20625731).
-  GPiBridgeLite_cpl_native.csv has KiCad's own rotations and positions, for comparison.
+  Upload GPiBridgeLite_bom.csv and GPiBridgeLite_cpl_jlcpcb_upload.csv: 62 placements, 21 BOM lines, 6 Extended (C160389, C25100, C165948, C42411119, C41378174, C20625731).
+  GPiBridgeLite_cpl_kicad_native.csv has KiCad's own rotations and positions, for reference: do not upload it.
   Moved in the CPL to JLCPCB's own origin for the part, so it lands on its pads: J1 by (+1.572, +0.000) mm.
   Every polarized part's rotation has been read right in a preview (PLACEMENT_CHECKS.txt).
   Not fitted by JLCPCB (hand_solder.csv): J2, the IEEE-488 plug (NorComp 111-024-113L001 or any 24-pin male,
@@ -22,7 +22,7 @@ COST ESTIMATE for 5 boards, 2 assembled (JLCPCB list prices as of 2026; parts fr
   PCBs, 4-layer ENIG, 5               ~$23  (about $15 less with lead-free HASL)
   assembly setup, stencil, Extended, THT ~$31
   assembly, 206 joints a board (+4 THT) x 2   ~$1
-  parts for 2 boards                   $6.73
+  parts for 2 boards                   $6.74
   TOTAL before shipping and duty       ~$62  (~$31 an assembled board; the other 3 bare boards
   are spares, for parts by hand)
   JLCPCB's own quote (the cart, 2026-10-06): $25.85 PCBs + $40.18 assembly = $66.03; this model is

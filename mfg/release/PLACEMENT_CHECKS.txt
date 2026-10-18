@@ -1,9 +1,9 @@
 GPiBridge rev A: PLACEMENT CHECKS for JLCPCB's preview
 
-MOVED in GPiBridge_cpl.csv to where JLCPCB's library puts the part's origin (their
-drawing's zero is not KiCad's; FOOTPRINT_CHECK.txt's 'datum').  In the preview each
-should sit squarely on its pads.  If one sits off them by about the same distance
-the other way, their library has changed: say so, and it goes into the code.
+MOVED in GPiBridge_cpl_jlcpcb_upload.csv to where JLCPCB's library puts the part's
+origin (their drawing's zero is not KiCad's; FOOTPRINT_CHECK.txt's 'datum').  In the
+preview each should sit squarely on its pads.  If one sits off them by about the same
+distance the other way, their library has changed: say so, and it goes into the code.
 
   J1     C165948    USB_C_Receptacle_HRO_TYPE-C-31-M-12          moved (+1.572, +0.000) mm (x right, y up)
 

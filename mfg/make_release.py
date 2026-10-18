@@ -12,11 +12,14 @@ Writes mfg/release/:
     GPiBridge_gerbers.zip          Gerbers and Excellon drill, measured from the
                                    board's bottom-left corner
     GPiBridge_bom.csv              one line per LCSC code (JLCPCB's columns)
-    GPiBridge_cpl.csv              placements for JLCPCB: rotations corrected
+    GPiBridge_cpl_jlcpcb_upload.csv
+                                   the placements to upload: rotations corrected
                                    (mfg/jlc_rotation.py), and each part moved to
                                    where JLCPCB's library puts its origin
                                    (mfg/footprint_check.py's datum: the USB-C)
-    GPiBridge_cpl_native.csv       the same with KiCad's own rotations
+    GPiBridge_cpl_kicad_native.csv
+                                   the same with KiCad's own rotations and
+                                   positions, for reference: not uploaded
     PLACEMENT_CHECKS.txt           the parts nobody has yet seen right in
                                    JLCPCB's placement preview, with their
                                    predicted corrections: look at these
@@ -146,7 +149,7 @@ def datum_shift(r, fits):
 def write_cpl(smt, fits):
     unchecked = collections.OrderedDict()           # LCSC code -> its placements, never seen in a preview
     moved = []                                      # (row, dx, dy): placements moved to JLCPCB's origin
-    for name, corrected in ((NAME + "_cpl.csv", True), (NAME + "_cpl_native.csv", False)):
+    for name, corrected in ((NAME + "_cpl_jlcpcb_upload.csv", True), (NAME + "_cpl_kicad_native.csv", False)):
         with open(os.path.join(OUT, name), "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow(["Designator", "Mid X", "Mid Y", "Layer", "Rotation"])
@@ -170,10 +173,10 @@ def placement_checks(rows, unchecked, fits, moved):
     of each part on our footprint, by pin number, printed as a cross-check."""
     L = ["%s rev %s: PLACEMENT CHECKS for JLCPCB's preview" % (NAME, BI.REV), ""]
     if moved:
-        L += ["MOVED in %s_cpl.csv to where JLCPCB's library puts the part's origin (their" % NAME,
-              "drawing's zero is not KiCad's; FOOTPRINT_CHECK.txt's 'datum').  In the preview each",
-              "should sit squarely on its pads.  If one sits off them by about the same distance",
-              "the other way, their library has changed: say so, and it goes into the code.", ""]
+        L += ["MOVED in %s_cpl_jlcpcb_upload.csv to where JLCPCB's library puts the part's" % NAME,
+              "origin (their drawing's zero is not KiCad's; FOOTPRINT_CHECK.txt's 'datum').  In the",
+              "preview each should sit squarely on its pads.  If one sits off them by about the same",
+              "distance the other way, their library has changed: say so, and it goes into the code.", ""]
         for r, dx, dy in moved:
             L.append("  %-6s %-10s %-44s moved (%+.3f, %+.3f) mm (x right, y up)"
                      % (r["ref"], r["lcsc"], r["fp"][:44], dx, dy))
@@ -413,9 +416,9 @@ def main(argv):
     N.append("ORDER: %d boards, %d of them assembled (JLCPCB's minimums: 5 boards, 2 assembled)." % (boards, assembled))
     N.append("")
     N.append("ASSEMBLY (JLCPCB economic PCBA, top side only)")
-    N.append("  Upload %s_bom.csv and %s_cpl.csv: %d placements, %d BOM lines, %d Extended (%s)."
+    N.append("  Upload %s_bom.csv and %s_cpl_jlcpcb_upload.csv: %d placements, %d BOM lines, %d Extended (%s)."
              % (NAME, NAME, len(smt), len(by), len(ext), ", ".join(ext) or "none"))
-    N.append("  %s_cpl_native.csv has KiCad's own rotations and positions, for comparison." % NAME)
+    N.append("  %s_cpl_kicad_native.csv has KiCad's own rotations and positions, for reference: do not upload it." % NAME)
     if moved:
         N.append("  Moved in the CPL to JLCPCB's own origin for the part, so it lands on its pads: %s."
                  % ", ".join("%s by (%+.3f, %+.3f) mm" % (r["ref"], dx, dy) for r, dx, dy in moved))

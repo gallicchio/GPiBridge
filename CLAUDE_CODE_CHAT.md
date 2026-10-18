@@ -11,7 +11,9 @@ the new one.
 Prompts 1-8 were worked in `OpticsPCBs/GPiBridge/`, inside Jason's private OpticsPCBs
 repository. Prompt 9 moved the project here, to its own public repository. Paths in the
 earlier responses are as they were then: `../CLAUDE_PCB.md`, for one, is now
-`CLAUDE_PCB.md`, a public snapshot of that file.
+`CLAUDE_PCB.md`, a public snapshot of that file, and since Prompt 10 the releases'
+`<board>_cpl.csv` and `<board>_cpl_native.csv` are `<board>_cpl_jlcpcb_upload.csv` and
+`<board>_cpl_kicad_native.csv`.
 
 ## Background: where the idea came from
 
@@ -1094,3 +1096,32 @@ arrive. `enclosure/README.md` now has all of this.
 3. Whether I should fix the other projects' paths.
 4. The authoritative `CLAUDE_PCB.md` is not in OpticsPCBs' git yet. Commit it there when
    you can.
+
+## Prompt 10
+
+CPL names: The two files should be named _cpl_jlcpcb_upload.csv and _cpl_kicad_native.csv
+if they haven't already been renamed.
+
+## Response 10 2026-10-08 21:04 - 21:06 Claude Opus 5.5 Max
+
+They hadn't been renamed. They are now, in both releases:
+
+| was | now |
+|---|---|
+| `GPiBridge_cpl.csv` | `GPiBridge_cpl_jlcpcb_upload.csv` |
+| `GPiBridge_cpl_native.csv` | `GPiBridge_cpl_kicad_native.csv` |
+| `GPiBridgeLite_cpl.csv` | `GPiBridgeLite_cpl_jlcpcb_upload.csv` |
+| `GPiBridgeLite_cpl_native.csv` | `GPiBridgeLite_cpl_kicad_native.csv` |
+
+- `mfg/make_release.py` writes the new names, and `FABRICATION_NOTES.txt` and
+  `PLACEMENT_CHECKS.txt` name them. The notes now say not to upload the native one.
+- I regenerated both releases. The four CPLs are byte for byte what was ordered, under
+  their new names.
+- Files whose only change was the run's timestamp (Gerbers, drill files, assembly PDFs,
+  the DRC reports) are left as committed.
+- The cost estimates re-fetched JLCPCB's stock and prices, because the cached answers
+  were two days old. The Lite's parts for 2 boards went from $6.73 to $6.74, and the
+  SN75161B is down from 90 to 82 in stock.
+- `CLAUDE_PCB.md` has the naming rule now.
+
+The changes are staged in git, not committed.

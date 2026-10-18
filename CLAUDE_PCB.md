@@ -365,6 +365,10 @@ mistake with an input level or a plug direction.
 - **Upload files:** gerbers zip, BOM (one line per LCSC code), CPL (KiCad native), CPL
   JLC-corrected, assembly notes to paste, and a cost estimate. Write `release/` so that
   Jason uploads exactly that folder.
+  - **CPL file names** (Jason, 2026-10-08): `<board>_cpl_jlcpcb_upload.csv` is the one he
+    uploads, with JLCPCB's rotations and positions; `<board>_cpl_kicad_native.csv` is
+    KiCad's own numbers, for reference. The names say which file goes to JLCPCB, which
+    `_cpl.csv` beside `_cpl_native.csv` did not.
 - **DRC.**
   - At least as strict as JLCPCB's rules for the chosen stackup, at every severity, 0
     errors, with schematic parity.
