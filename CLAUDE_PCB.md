@@ -106,6 +106,23 @@ GPSDO, Icepi, Lorenz and ECP5.
     the three.
   - One plot of all the top layers buries the silkscreen under copper fill
     and Fab text.
+- **Every page fits what is on it: sized to it, centred, filling it** (Jason, 2026-10-29: "In
+  general, the schematics, PCBs, and PDFs should be sized and centered properly. I've seen
+  many examples of things hanging off of the page or the page being far too big for the thing
+  on it.").
+  - Schematic sheets, board plots, assembly drawings and figures. The drawing spans the paper
+    less a margin of about half an inch (12.7 mm), in whichever orientation suits it, with its
+    centre at the page's. Nothing hangs off an edge; nothing sits in a corner of a page
+    several times its size.
+  - **kicad-cli does not do this.** It plots a board 1:1 where the board lies on its A4
+    sheet, and its `--scale 0` autoscale stays on A4, off centre.
+    - Fit each page after export with OpticsPCBs' `CostasLink-PYNQ-Z2/tools/fit_pdf.py`. It
+      measures the drawn box with Ghostscript's bbox device and scales it onto Letter.
+    - Print the scale in the margin.
+    - Plot paper drawings `--black-and-white`, because KiCad's yellow and pink silkscreen
+      colours hardly print.
+  - **A schematic's sheet size is chosen for its content**, so the content fills the frame.
+  - **Check by rendering every page whole** (`pdftoppm`), and with `fit_pdf.py check`.
 - **Datasheets** go in `datasheets/`, gitignored for copyright. Fetch all of them: every
   IC, connector and mechanical part. Read pinouts from the datasheet's **pin figure**,
   not only its table.
@@ -554,6 +571,8 @@ Before calling a schematic, PCB or release done:
 9. CPL native plus JLC-corrected, with `PLACEMENT_CHECKS.txt`.
 10. The revision and date on the silkscreen match the source of truth. A release is
     stamped DRAFT until the date is a real date.
+11. Every PDF page is sized to what is on it, centred, and filled less a half-inch margin.
+    This covers schematic sheets and assembly drawings (§2, "Every page fits what is on it").
 
 ## 11. KiCad 10 and tooling quirks
 
