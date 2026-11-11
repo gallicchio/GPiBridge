@@ -1,4 +1,4 @@
-# Chat with Claude about Tether488, an open USB-C to GPIB (IEEE-488) adapter
+# Chat with Claude about GPiBridge, an open USB-C to GPIB (IEEE-488) adapter
 
 Every prompt is recorded here as it was typed, with minor typos fixed, followed by
 the response. The design files, scripts and documents in this directory are what the
