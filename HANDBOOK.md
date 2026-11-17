@@ -32,6 +32,8 @@ The parts most likely to be fitted the wrong way round are listed in
 2. **Load the firmware.** `picotool load -x firmware/build/gpibridge.uf2`, or copy the
    UF2 onto the `RP2350` drive. Its serial port appears: `python3 tools/gpibridge.py
    list`.
+   (For the first boards, `python3 bringup/run.py flash` and `bare` do steps 2 to 4 and
+   record what they find: `BRINGUP.md`.)
 3. **Its status.** `python3 tools/gpibridge.py status` prints a JSON line with the
    version, `"bus_power":1` and `usb_ready_ms`. The firmware switches the transceivers on
    as soon as the host configures USB.
@@ -93,13 +95,29 @@ GPiBridge's own commands:
 
 | command | does |
 |---|---|
-| `++t status` | JSON: version, board (`GPiBridge rev A` or `GPiBridge Lite rev A`), bus power, SRQ, byte and error counters, `usb_ready_ms` (reset to USB configured) |
+| `++t status` | JSON: version, board (`GPiBridge rev A` or `GPiBridge Lite rev A`), bus power, who has the bus (`"bus"`: `controller`, `off`, `busy`, `raw`), SRQ, byte and error counters, `usb_ready_ms` (reset to USB configured) |
+| `++t info` | JSON: the serial number, the RP2350's stepping, the temperature sensor's raw count (a reading of the 3.3 V rail), the clock, the watchdog (`wd_load`, `wd_per_ms`: 2,000,000 and 1000 for its 2 s), and why this start happened (`watchdog_reset` 1 after a hang; `boot_reason` 1 timeout, 2 forced) |
+| `++t crash` | hang on purpose: the watchdog restarts the board 2 s later, and the third in a row lands in BOOTSEL. The failsafe's test (`bringup/run.py failsafe`) |
 | `++t trace 1` | log every transfer (UART, and the console port if it is on) |
 | `++t capture start`, `stop`, `status`, `dump` | record the bus; `dump` sends a VCD for PulseView (`BRINGUP.md` §3) |
 | `++t console 1` | add a second serial port, "GPiBridge console" (JSON log and commands); saved; the adapter reconnects. `0` removes it |
 | `++t compat 1` | `++ver` answers with the Prologix string, for software that checks it (EZGPIB) |
-| `++t power 0/1`, `++t ren 0/1` | on or off the bus (GPiBridge: the transceivers' 5 V); REN |
+| `++t power 0/1/2`, `++t ren 0/1` | off the bus; on it (GPiBridge: the transceivers' 5 V) unless another controller holds ATN, REN or IFC, when it stays off and `++t status` says `"bus":"busy"`; `2`: on it regardless. REN |
+| `++t autostart 0` | saved: stay off the bus when plugged in, until `++t power 1` (`1`, the default: take it as soon as USB is configured) |
+| `++t identify [s]` | the yellow and red LEDs flash turn about for `s` seconds (30): which of several adapters is this one? `0` stops |
+| `++t lines` | the sixteen bus lines as the pins read them now, by name |
+| `++t selftest` | with nothing on the GPIB side: the 5 V switch, every receive path, every joint between the RP2354A and the transceivers (the Lite: each line against the others). JSON lines, the last with `"ok"` |
+| `++t raw ...` | the lines by hand, for bring-up and fault-finding: `firmware/src/bringup.h` |
 | `++t bootsel` | reboot into the ROM bootloader, for a firmware update |
+
+A data line may be any length: past 8192 bytes it is passed to the instrument as it
+arrives, EOI on its last byte.
+
+**Two adapters on one bus.** A GPiBridge plugged into a bus that another controller is
+already running (a Prologix, an NI board, another GPiBridge) sees its REN or ATN, stays
+off the bus and lights its red LED; nothing is driven against the other. Only one
+controller can run a bus: unplug the other, or send `++t power 2` to the one that
+should have it.
 
 In data lines, CR, LF, ESC and '+' must be escaped with ESC (27). An unescaped '+' is
 dropped, as on a Prologix: `tools/gpibridge.py` escapes for you, and so does PyVISA-py's
@@ -152,8 +170,9 @@ Settings saved with `++savecfg` survive updates.
 - **Normal update**: `python3 tools/gpibridge.py flash firmware/build/gpibridge.uf2`. It
   asks the firmware for BOOTSEL (`++t bootsel`), then runs `picotool load -x`. Or use
   `picotool reboot -f -u` then `picotool load -x FILE`: the reset interface does it.
-- **Firmware that crashes**: after three watchdog resets in a row, it reboots into
-  BOOTSEL by itself. Load a good image.
+- **Firmware that crashes or hangs**: after three watchdog timeouts in a row, it reboots
+  into BOOTSEL by itself. Load a good image. (Deliberate reboots, `++rst` or
+  `++t console`, do not count.)
 - **Firmware that runs but whose USB is broken**: load a new image over SWD (the Debug
   Probe on J3 works whatever the firmware does), or send `bootsel` on the console.
 - **Nothing else works**: hold BOOT (a paperclip through the lid's small hole) while

@@ -173,7 +173,9 @@ Status: `[ ]` to do, `[~]` under way, `[x]` done.
 9. [x] Enclosure: FreeCAD's Python (not OpenSCAD: FreeCAD can intersect the housing
    with the board's STEP export), STEP and STL for JLC3DP, 0 overlaps with the board's
    3D model, and renders.
-10. [~] Firmware v0.3.0 (0.3.0: one image for both boards, the Lite's open-drain pin layer):
+10. [~] Firmware v0.4.0 (0.3.0: one image for both boards, the Lite's open-drain pin layer;
+    0.4.0, before the first board: long lines stream, a look for another controller before
+    taking the bus, the bring-up's `++t raw`, `selftest`, `info`, `identify`, `autostart`):
     - the Prologix personality, one serial port (the console optional), the reset
       interface with Microsoft OS 2.0 descriptors, settings in flash, the failsafes;
     - the bus engine in C, and the bus capture on core 1;
@@ -195,11 +197,14 @@ Status: `[ ]` to do, `[~]` under way, `[x]` done.
 18. [x] Its own public repository (Prompt 9): moved out of OpticsPCBs, every committed path
     relative, a public snapshot of `CLAUDE_PCB.md`. The housing's screws corrected to
     M2 x 8 (M2 x 10 would bottom out), with the stack checked on every build.
-19. [ ] Bring-up, when the boards arrive (`BRINGUP.md`).
+19. [~] Bring-up (`BRINGUP.md`; `bringup/STATUS.md` says where it stands). Prepared
+    2026-11-15 (Prompt 12): the firmware's bring-up commands, a board simulator, every
+    step run against it, the rev B list started. 2026-11-16 (Prompt 13): A1 through
+    stage 1 and the failsafe, firmware 0.4.2, two firmware bugs found and fixed.
 
 ## 5. Open questions (to Jason, when he is back)
 
-- **Ordered 2026-10-06, not yet received:** both boards, 5 of each with 2 assembled
+- **Ordered 2026-10-06, received in November:** both boards, 5 of each with 2 assembled
   ($24.80 + $60.56 and $25.85 + $40.18). In GPiBridge's preview every rotation was
   right, and Jason moved the USB-C onto its pads by hand; the Lite's had the same
   1.57 mm offset. The JLCPCB CPLs now move it themselves, for later orders. Look at J1

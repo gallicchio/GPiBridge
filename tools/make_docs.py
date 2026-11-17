@@ -2,6 +2,8 @@
 """The pictures and generated documents the README and HANDBOOK show:
 
     docs/images/board_top.png, board_bottom.png, board_iso.png   KiCad's 3D renders
+    docs/images/bringup_map.png                                  the top, the bring-up's places numbered
+                                                                 (tools/bringup_map.py)
     docs/images/housing_*.png                                    enclosure/out's renders
     docs/images/schematic.png, docs/GPiBridge_schematic.pdf      the schematic
     docs/PINOUT.md                                               from gen/pins.py
@@ -70,6 +72,11 @@ def pinout():
 def main():
     os.makedirs(IMG, exist_ok=True)
     renders()
+    try:                               # the top with the bring-up's places numbered (BRINGUP.md)
+        import bringup_map
+        bringup_map.main()
+    except ImportError as e:           # no Pillow here: the committed picture stays
+        print("docs: bringup_map skipped (%s)" % e)
     schematic()
     if not BI.LITE:
         pinout()                       # one for both boards

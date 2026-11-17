@@ -1,5 +1,6 @@
 /* prologix.c: the "++" command set over gpib.c.  See prologix.h. */
 #include "prologix.h"
+#include "bringup.h"
 #include "gpib.h"
 #include "gpib_hal.h"
 #include "version.h"
@@ -9,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define LINE_MAX 8192            /* a data line: a whole waveform upload fits */
+#define LINE_MAX 8192            /* a line; a longer data line streams to the instrument as it arrives */
 #define WRITE_TIMEOUT_US 1000000 /* a listener that holds NRFD this long is not coming back */
 #define ESC 27
 
@@ -23,6 +24,9 @@ static uint8_t line[LINE_MAX + 2];
 static size_t len;
 static bool esc, overflow, command;
 static int leading_plus;
+/* a data line longer than the buffer: the instrument is already addressed and
+ * has the line's start; stream_failed: it stopped taking bytes, drop the rest */
+static bool streaming, stream_failed;
 
 /* output to the host, in chunks */
 static uint8_t obuf[64];
@@ -49,7 +53,7 @@ static void out_byte(uint8_t b)
 
 static void reply(const char *fmt, ...)
 {
-    char s[320];          /* ++t status with its extra fields is the longest */
+    char s[480];          /* ++t info with its extra fields is the longest */
     va_list ap;
     va_start(ap, fmt);
     int n = vsnprintf(s, sizeof s - 2, fmt, ap);
@@ -100,9 +104,11 @@ void prologix_init(const prologix_io *i, const prologix_config *saved)
     if (saved)
         prologix_cfg = *saved;
     len = 0;
-    esc = overflow = command = false;
+    esc = overflow = command = streaming = stream_failed = false;
     leading_plus = 0;
 }
+
+static const char *board_name(void) { return hal_lite() ? "GPiBridge Lite " GPIBRIDGE_BOARD : "GPiBridge " GPIBRIDGE_BOARD; }
 
 /* ---------------------------------------------------------------------------- */
 static void read_until(bool stop_eoi, int stop_char)
@@ -128,6 +134,28 @@ static void read_until(bool stop_eoi, int stop_char)
         note("read", s);
 }
 
+/* The buffer is full and the line goes on: a real Prologix passes bytes on as
+ * they come, and an arbitrary-waveform upload is tens of kilobytes in one
+ * line.  Address the instrument once and send what is here, keeping the last
+ * byte back: whichever byte turns out to end the line carries the EOI. */
+static void stream_flush(void)
+{
+    gpib_status s = GPIB_OK;
+    gpib_timeout_us = WRITE_TIMEOUT_US;
+    if (!streaming)
+        s = gpib_talk_start(prologix_cfg.pad, prologix_cfg.sad);
+    streaming = true;
+    for (size_t i = 0; s == GPIB_OK && i + 1 < len; i++)
+        s = gpib_talk_byte(line[i], false);
+    line[0] = line[len - 1];
+    len = 1;
+    if (s != GPIB_OK) {
+        note("write", s);
+        gpib_idle();
+        stream_failed = true;
+    }
+}
+
 static void send_line(void)
 {
     static const char *eos[] = {"\r\n", "\r", "\n", ""};
@@ -135,7 +163,11 @@ static void send_line(void)
     for (const char *e = eos[prologix_cfg.eos & 3]; *e; e++)
         line[n++] = (uint8_t)*e;
     gpib_timeout_us = WRITE_TIMEOUT_US;
-    gpib_status s = gpib_send_to(prologix_cfg.pad, prologix_cfg.sad, line, n, prologix_cfg.eoi);
+    gpib_status s = GPIB_OK;
+    if (!streaming)                      /* a streamed line's start has gone already */
+        s = gpib_talk_start(prologix_cfg.pad, prologix_cfg.sad);
+    for (size_t i = 0; s == GPIB_OK && i < n; i++)
+        s = gpib_talk_byte(line[i], prologix_cfg.eoi && i + 1 == n);
     if (s != GPIB_OK) {
         note("write", s);
         gpib_idle();
@@ -211,14 +243,39 @@ static void tether_command(void)
     const char *what = argc > 1 ? argv[1] : "help";
     int v;
     if (!strcmp(what, "status")) {
-        char extra[128] = "";
+        char extra[160] = "";
         if (io->status_extra)
             io->status_extra(extra, sizeof extra);
-        reply("{\"version\":\"%s\",\"bus_power\":%d,\"srq\":%d,\"addr\":%d,\"bytes_out\":%lu,\"bytes_in\":%lu,"
-              "\"timeouts\":%lu,\"no_listener\":%lu%s}",
-              GPIBRIDGE_VERSION, gpib_powered(), gpib_srq(), prologix_cfg.pad, (unsigned long)gpib_count.bytes_out,
+        reply("{\"version\":\"%s\",\"bus_power\":%d,\"bus\":\"%s\",\"srq\":%d,\"addr\":%d,\"bytes_out\":%lu,"
+              "\"bytes_in\":%lu,\"timeouts\":%lu,\"no_listener\":%lu,\"autostart\":%d%s}",
+              GPIBRIDGE_VERSION, gpib_powered(),
+              gpib_busy() ? "busy" : !gpib_powered() ? "off" : gpib_is_raw() ? "raw" : "controller",
+              gpib_srq(), prologix_cfg.pad, (unsigned long)gpib_count.bytes_out,
               (unsigned long)gpib_count.bytes_in, (unsigned long)gpib_count.timeouts,
-              (unsigned long)gpib_count.no_listener, extra);
+              (unsigned long)gpib_count.no_listener, !prologix_cfg.manual_start, extra);
+    } else if (!strcmp(what, "raw") || !strcmp(what, "lines") || !strcmp(what, "selftest")) {
+        bringup_command(argc - 1, argv + 1, reply, board_name());
+    } else if (!strcmp(what, "info")) {
+        char info[360] = "";
+        if (io->info)
+            io->info(info, sizeof info);
+        reply("{\"version\":\"%s\",\"board\":\"%s\"%s}", GPIBRIDGE_VERSION, board_name(), info);
+    } else if (!strcmp(what, "identify")) {
+        /* both LEDs flash, so one board of several on a bench can be told apart */
+        v = 30;
+        if (argc > 2 && !number(argv[2], 0, 3600, &v))
+            v = -1;
+        if (v >= 0 && io->identify)
+            io->identify(v);
+    } else if (!strcmp(what, "autostart")) {
+        /* 0: stay off the bus when the host configures us, until "++t power 1"
+         * (two controllers on one bench bus; a bus somebody else is running) */
+        if (argc == 2) {
+            reply("%d", !prologix_cfg.manual_start);
+        } else if (number(argv[2], 0, 1, &v)) {
+            prologix_cfg.manual_start = !v;
+            changed();
+        }
     } else if (!strcmp(what, "console") && argc > 2 && number(argv[2], 0, 1, &v)) {
         /* the USB device changes shape: save, then reconnect with the new one */
         prologix_cfg.console_port = v;
@@ -231,11 +288,13 @@ static void tether_command(void)
             io->capture(argc > 2 ? argv[2] : "status");
         else
             reply("no capture on this build");
-    } else if (!strcmp(what, "power") && argc > 2 && number(argv[2], 0, 1, &v)) {
-        if (v)
-            gpib_start();
-        else
+    } else if (!strcmp(what, "power") && argc > 2 && number(argv[2], 0, 2, &v)) {
+        /* 1: on the bus, unless another controller has it; 2: on it regardless */
+        if (!v)
             gpib_stop();
+        else if (!gpib_start(v == 2) && io->log)
+            io->log("{\"event\":\"bus\",\"error\":\"another controller holds ATN, REN or IFC: staying off the "
+                    "bus (++t power 2 takes it regardless)\"}");
     } else if (!strcmp(what, "ren") && argc > 2 && number(argv[2], 0, 1, &v)) {
         gpib_ren(v);
     } else if (!strcmp(what, "compat") && argc > 2 && number(argv[2], 0, 1, &v)) {
@@ -246,9 +305,20 @@ static void tether_command(void)
     } else if (!strcmp(what, "bootsel")) {
         out_flush();
         io->reboot(true);
+    } else if (!strcmp(what, "crash")) {
+        /* the failsafe's test: the firmware hangs, the watchdog restarts it, and
+         * the third timeout in a row lands in the ROM bootloader */
+        if (io->crash) {
+            out_flush();
+            io->crash();
+        } else {
+            reply("no watchdog on this build");
+        }
     } else {
-        reply("++t status | power 0|1 | ren 0|1 | compat 0|1 | trace 0|1 | console 0|1 | "
-              "capture start|stop|status|dump | bootsel");
+        reply("++t status | info | power 0|1|2 | autostart [0|1] | ren 0|1 | compat 0|1 | trace 0|1 | console 0|1 | "
+              "capture start|stop|status|dump | identify [s] | bootsel | crash");
+        reply("++t lines | selftest | raw [dev_listen|dev_talk|ctrl_listen|ctrl_talk | set 0xMASK | "
+              "get [up|down] | pe 0|1 | off]");
     }
 }
 
@@ -399,25 +469,35 @@ static void do_command(void)
 /* ---------------------------------------------------------------------------- */
 static void end_of_line(void)
 {
-    if (overflow) {
+    if (stream_failed) {
+        /* reported when it happened; the rest of the line was dropped */
+    } else if (overflow) {
         if (io->log)
-            io->log("{\"event\":\"input\",\"error\":\"line too long: dropped\"}");
+            io->log("{\"event\":\"input\",\"error\":\"command too long: dropped\"}");
     } else if (command) {
         do_command();
     } else if (len) {
         send_line();
     }
     len = 0;
-    esc = overflow = command = false;
+    esc = overflow = command = streaming = stream_failed = false;
     leading_plus = 0;
 }
 
 static void keep(uint8_t c)
 {
-    if (len < LINE_MAX)
-        line[len++] = c;
-    else
-        overflow = true;
+    if (stream_failed)
+        return;
+    if (len == LINE_MAX) {
+        if (command) {
+            overflow = true;
+            return;
+        }
+        stream_flush();
+        if (stream_failed)
+            return;
+    }
+    line[len++] = c;
 }
 
 void prologix_input(const uint8_t *data, size_t n)

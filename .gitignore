@@ -15,12 +15,17 @@ enclosure/out/gpibridgelite_board.step
 
 # Firmware build products and the fetched Pico SDK.
 firmware/build/
+firmware/build-*/
 firmware/.deps/
 firmware/external/
 # The host tests and the bus recordings they write (firmware/test/Makefile).
 firmware/test/test_wire
 firmware/test/test_prologix
+firmware/test/sim_board
 firmware/test/out/
+
+# pytest's cache.
+.pytest_cache/
 
 # KiCad writes these while a project is open.
 *.kicad_prl

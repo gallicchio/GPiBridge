@@ -127,26 +127,46 @@ void hal_init(void)
         }
 }
 
-void hal_power(bool on)
+/* How long the transceivers' 5 V takes to fall once Q1 opens: 2.6 uF into the
+ * two chips and the BUS LED.  Not yet measured on a board (BRINGUP.md, stage 1b). */
+#define RAIL_FALL_US 3000
+
+static void release_all(void)
 {
-    if (on) {
-        gpio_put(PIN_BUS_PWR_EN, 1);     /* GPiBridge: the transceivers' 5 V; the Lite: its BUS LED */
-        powered = true;
-    } else {
-        if (lite)
-            gpio_set_dir_in_masked(BUS_PIN_MASK);        /* the Lite lets go of the bus, then says so */
-        powered = false;
-        if (!lite) {
-            gpio_put(PIN_DC, 1);
-            gpio_put(PIN_TE_DATA, 0);
-            gpio_put(PIN_TE_CTRL, 0);
-            gpio_put(PIN_PE, 0);
-        }
-        gpio_put(PIN_BUS_PWR_EN, 0);
-    }
     for (unsigned pin = 0; pin < 32; pin++)
         if (BUS_PIN_MASK & (1u << pin))
             release_input(pin);
+}
+
+/* GPiBridge: while the transceivers have power, a terminal input that is not
+ * driven must rest on a pull-up, which reads as "released": on a pull-down a
+ * listening device's SN75161B asserts NRFD, NDAC and SRQ.  So the pull-ups go
+ * on before the 5 V does, and stay until it has gone.  A pull-up into the
+ * unpowered chips is some 50 uA a pin, for the moment the 5 V takes to rise or
+ * fall.  With this, a board that powers up only to find another controller
+ * on the bus (gpib.c) leaves again without a mark on any line. */
+void hal_power(bool on)
+{
+    if (on) {
+        powered = true;
+        release_all();                   /* pull-ups, input buffers on */
+        gpio_put(PIN_BUS_PWR_EN, 1);     /* GPiBridge: the transceivers' 5 V; the Lite: its BUS LED */
+        return;
+    }
+    if (lite) {
+        gpio_set_dir_in_masked(BUS_PIN_MASK);            /* the Lite lets go of the bus, then says so */
+    } else if (powered) {
+        release_all();                   /* whatever we still drove, let go while they can still hear it */
+        gpio_put(PIN_DC, 1);
+        gpio_put(PIN_TE_DATA, 0);
+        gpio_put(PIN_TE_CTRL, 0);
+        gpio_put(PIN_PE, 0);
+        gpio_put(PIN_BUS_PWR_EN, 0);
+        busy_wait_us_32(RAIL_FALL_US);
+    }
+    powered = false;
+    gpio_put(PIN_BUS_PWR_EN, 0);
+    release_all();                       /* GPiBridge: pull-downs, input buffers off (E9); the Lite: nothing at all */
 }
 
 void hal_controller(bool on)
@@ -235,6 +255,137 @@ void hal_data_release(void)
         gpio_set_dir_in_masked(DATA_MASK);
     else
         gpio_put_masked(DATA_MASK, DATA_MASK);
+}
+
+/* ---- bring-up: the board as sixteen wires (gpib_hal.h) ------------------------ */
+static raw_role raw = RAW_DEV_LISTEN;
+static const unsigned dio_pin[8] = {PIN_DIO1, PIN_DIO2, PIN_DIO3, PIN_DIO4, PIN_DIO5, PIN_DIO6, PIN_DIO7, PIN_DIO8};
+
+static unsigned raw_pin(unsigned bit) { return bit < 8 ? dio_pin[bit] : pin_of[bit - 8]; }
+
+#define RAW_HANDSHAKE (RAW_BIT(L_NRFD) | RAW_BIT(L_NDAC))
+#define RAW_MANAGE (RAW_BIT(L_ATN) | RAW_BIT(L_REN) | RAW_BIT(L_IFC))
+
+uint16_t hal_raw_drives(void)
+{
+    static const uint16_t drives[RAW_ROLES] = {
+        [RAW_DEV_LISTEN] = RAW_HANDSHAKE | RAW_BIT(L_SRQ),
+        [RAW_DEV_TALK] = RAW_DATA | RAW_BIT(L_DAV) | RAW_BIT(L_SRQ),
+        [RAW_CTRL_LISTEN] = RAW_HANDSHAKE | RAW_MANAGE,
+        [RAW_CTRL_TALK] = RAW_DATA | RAW_BIT(L_DAV) | RAW_BIT(L_EOI) | RAW_MANAGE,
+    };
+    return lite ? 0xffffu : drives[raw];
+}
+
+uint16_t hal_raw_reads(void)
+{
+    static const uint16_t reads[RAW_ROLES] = {
+        [RAW_DEV_LISTEN] = RAW_DATA | RAW_BIT(L_DAV) | RAW_BIT(L_EOI) | RAW_MANAGE,
+        [RAW_DEV_TALK] = RAW_MANAGE | RAW_HANDSHAKE,
+        [RAW_CTRL_LISTEN] = RAW_DATA | RAW_BIT(L_DAV) | RAW_BIT(L_SRQ),
+        [RAW_CTRL_TALK] = RAW_HANDSHAKE | RAW_BIT(L_SRQ),
+    };
+    return lite ? 0xffffu : reads[raw];
+}
+
+static void raw_release_all(void)
+{
+    for (unsigned bit = 0; bit < 16; bit++)
+        release_input(raw_pin(bit));
+}
+
+/* The same rule as hal_talk(): no pin of ours drives while the transceivers
+ * turn.  Released pins rest on their pull-ups, which a terminal input reads
+ * as "released", so the bus sees nothing asserted on the way. */
+void hal_raw_role(raw_role role)
+{
+    if (!powered)
+        return;
+    raw_release_all();
+    raw = role;
+    if (lite)
+        return;
+    bool talk = role == RAW_DEV_TALK || role == RAW_CTRL_TALK;
+    bool ctrl = role == RAW_CTRL_LISTEN || role == RAW_CTRL_TALK;
+    gpio_put(PIN_TE_DATA, talk);
+    gpio_put(PIN_TE_CTRL, talk);
+    gpio_put(PIN_DC, !ctrl);
+    uint16_t d = hal_raw_drives();
+    for (unsigned bit = 0; bit < 16; bit++)
+        if (d >> bit & 1)
+            drive(raw_pin(bit), false);
+}
+
+void hal_raw_end(void)
+{
+    raw_release_all();
+    raw = RAW_DEV_LISTEN;
+    if (!lite) {
+        gpio_put(PIN_TE_DATA, 0);
+        gpio_put(PIN_TE_CTRL, 0);
+        gpio_put(PIN_DC, 1);
+    }
+}
+
+void hal_raw_set(uint16_t asserted)
+{
+    if (!powered)
+        return;
+    uint16_t d = hal_raw_drives();
+    for (unsigned bit = 0; bit < 16; bit++)
+        if (d >> bit & 1)
+            drive(raw_pin(bit), asserted >> bit & 1);
+}
+
+/* RP2350-E9 (A2 stepping): a pin with its input buffer on, held only by the
+ * pad's pull-down, drifts up to about 2.2 V and reads high.  So a pull-down
+ * reading keeps the buffers off while the pull settles the pin, and switches
+ * each one on only for its own read, as the datasheet's workaround has it. */
+uint16_t hal_raw_get(int pull)
+{
+    uint16_t ours = lite ? 0 : hal_raw_drives(), v = 0;
+    if (!powered) {
+        ours = 0;
+        if (!lite && pull >= 0)
+            pull = -1;                   /* never a pull-up into the unpowered transceivers */
+    }
+    if (!pull) {                         /* as the pins stand */
+        uint32_t pins = gpio_get_all();
+        for (unsigned bit = 0; bit < 16; bit++)
+            if (!(pins >> raw_pin(bit) & 1))
+                v |= (uint16_t)(1u << bit);
+        return v;
+    }
+    for (unsigned bit = 0; bit < 16; bit++) {
+        unsigned pin = raw_pin(bit);
+        if (ours >> bit & 1)
+            continue;
+        if (pull > 0) {
+            gpio_pull_up(pin);
+            gpio_set_input_enabled(pin, true);
+        } else {
+            gpio_set_input_enabled(pin, false);
+            gpio_pull_down(pin);
+        }
+    }
+    busy_wait_us_32(50);                 /* a pad's 50-80 k against a pin, or against a cable on the Lite */
+    for (unsigned bit = 0; bit < 16; bit++) {
+        unsigned pin = raw_pin(bit);
+        bool low;
+        if (pull < 0 && !(ours >> bit & 1)) {
+            gpio_set_input_enabled(pin, true);
+            low = !gpio_get(pin);
+            gpio_set_input_enabled(pin, false);
+        } else {
+            low = !gpio_get(pin);
+        }
+        if (low)
+            v |= (uint16_t)(1u << bit);
+    }
+    for (unsigned bit = 0; bit < 16; bit++)     /* back to what release_input() leaves */
+        if (!(ours >> bit & 1))
+            release_input(raw_pin(bit));
+    return v;
 }
 
 uint64_t hal_us(void) { return time_us_64(); }

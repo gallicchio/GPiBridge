@@ -1153,3 +1153,300 @@ order; Replace Parts is in Order History; the API lists the shelf in a minute; k
 record the substitution) is in CLAUDE_PCB.md section 3, here and in OpticsPCBs.  The second GPiBridge order
 (the Lite shares L1) may get the same email: the same answer.  Response 10's staged renames were
 committed first.
+
+## Prompt 12
+
+Read CLAUDE_CODE_CHAT.md and come up with a bring up and test plan for PCBs that came in.
+All prompts (including this and following ones) along with your responses should go into
+that document. The limiting factor will be my time in the lab. To this end, write the
+bring up plan to use ~/mudd/lab-instrument-control/ and modify lab-instrument-control
+repository if bugs are discovered or new features should be added. If there is any
+firmware for this project, write it and simulate it as best you can before connecting any
+hardware. This includes one-off things just for the bringup process. Install any tools
+you need to install in ~/.local/ kicad is there. Various versions of Vivado are in
+~/Downloads/Xilinx/ and you can use whichever if appropriate. If you need to look at
+other pcb projects in ~/pcbs/ or ~/OpticsPCBs/ you should feel free to look. You should
+also modify ~/OpticsPCBs/CLAUDE_PCB.md with any lessons learned that should be applied to
+future PCB work. In the next day or in the next few days, I'll hook up appropriate
+instruments to this computer to debug this PCB. Any problems should go into a REVB.md or
+REVC.md list that you'll maintain as you discover problems with the current revision that
+we will test. Again, any lessons learned should go into ~/OpticsPCBs/CLAUDE_PCB.md for
+future PCB designs. When you are done with the plan, print it here in the chat, with very
+explicit instructions on which channels of which instruments should connect to which
+places on the PCB. I'll be juggling several of these PCB bringups at once, and it'll be
+easy for me to get confused when I pop in and change some physical configuration, so
+you'll need to always remind me of where we're at so that I can sit down and *correctly*
+do what needs doing in the brief windows that I have before I need to run to my next
+meeting.
+
+*Added while the work was under way:*
+
+The instruments plugged in are being used for something else. Assume that I can attach
+any of the lab-instrument-control instruments that would be helpful. I will probably do
+one board bringup at a time, but I want to plan them in parallel.
+
+<!-- typo fixed in the prompt above: "lesions learned" -> "lessons learned" -->
+
+## Response 12 2026-11-15 21:38 - 22:40 Claude Fable 5.2
+
+*Nothing is committed, here or in lab-instrument-control or OpticsPCBs. No board has had
+power and no instrument was touched: the ones on `bell` tonight belong to other work.*
+
+**Where we are:** no board plugged in yet. **Next at the bench, 1 minute:** one assembled
+GPiBridge (two big chips), its USB-C into `bell`, nothing else, and the words "a
+GPiBridge is plugged in". `bringup/STATUS.md` holds this from now on, and every step
+rewrites it.
+
+![the places a step names](docs/images/bringup_map.png)
+
+### The plan
+
+`BRINGUP.md` is rewritten around it. Each stage is a short visit; Claude does the rest
+from `bell`, one step a call (`python3 bringup/run.py <step>`), with nothing waiting
+for a keyboard.
+
+| stage | you, at the bench | time | Claude | needs |
+|---|---|---|---|---|
+| 0 | look at J1 (the USB-C), the chips' pin-1 dots | 2 min | | eyes |
+| 1 | board's **J1** to `bell` by USB-C. Write the name Claude gives it (A1) on the board | 1 min | `flash`, `bare A1`: firmware, 3.3 V rail (by the chip's temperature sensor), crystal, the 5 V switch, all 16 receive paths and joints (self-test), flash settings, reboot, capture, BOOTSEL and back | a USB-C data cable |
+| 1b | scope **channel 1**, x10 probe: ground clip on **J1's metal shell**; touch **TP3, TP2, TP1, TP4** in any order, each until the scope beeps | 3 min | `rails A1`: the four rails, the core supply's ripple (rev A's substituted L1), +5V_GPIB under load | an SDS1104X-E or the SDS2104X Plus |
+| 2 | solder the plug: two pins (the hole marked **1**, the hole under **12**), meter **contact 24 to TP5: 0 ohms**, then the other 22 | 15 min | `plug A1`: the self-test with the plug's joints on the lines | plug, housing base, iron, meter |
+| 2b, optional | two boards with plugs, both green LEDs off, into the two ends of a GPIB cable | 2 min | `pair A1 A2`: each of 16 lines alone, both ways; names an open joint, a bridge, a turned plug | a GPIB cable |
+| 3, optional | board and the bench Prologix on one GPIB cable, both USBs to `bell` | 2 min | `prologix A1`: every byte value both ways, SRQ, timeouts | Prologix PXAESUX9 |
+| 4 | board into the **HP 33120A**'s rear GPIB socket (address 10, on); nothing on its Output BNC | 2 min | `gen A1`: lab-instrument-control's own driver through the adapter, a 16,000-point upload, a capture read by sigrok | an HP 33120A |
+| 5 | the dearer instruments, one at a time | | speed; PIO if it is needed | |
+| 6 | the Lite (L1): stages 0 to 4 again | | the same firmware image | |
+
+`BRINGUP.md` has each stage's pass conditions and what a failure means, one table of
+every connection ("which instrument, which channel, which place"), and a table from
+each way rev A could be dead on arrival to the stage that answers it.
+
+**The bench rules** it sets:
+- **Green LED off means off the bus.** Every step leaves the board parked, so a cable
+  can be changed at any time; a lit green LED means "tell Claude first".
+- **Say what is cabled, each visit.** Claude then claims the instrument in
+  lab-instrument-control's `bench_claims.py` (written tonight by the op-amp board's
+  session; four bring-ups share the bench) and only then touches it.
+- **Nothing is soldered but the plug**, and no probe is held longer than a beep.
+
+### What was done to get there
+
+1. **Firmware 0.4.0**, with the bring-up's own commands:
+   - `++t selftest`: with nothing on the GPIB side, every receive path, the 5 V switch
+     and every joint from the transceivers to the RP2354A, by reading each pin on a
+     pull-up and a pull-down with the 5 V on and off;
+   - `++t raw`: the sixteen lines by hand, in each of the transceivers' four roles;
+   - `++t info` (the chip's stepping, reset cause, and the 3.3 V rail by the temperature
+     sensor), `++t lines`, `++t identify` (flash this board's LEDs), `++t autostart`.
+2. **A board that is not there**: `firmware/test/sim_board` runs the firmware above the
+   SDK behind a pseudo-terminal, on a model of the transceivers from their function
+   tables. Several share one simulated cable; faults can be planted (no 5 V, a switch
+   stuck, an open joint, a bridge, the plug turned round).
+3. **The bring-up scripts** (`bringup/`), each step run against it: 28 tests. Good
+   boards pass; each fault fails the step meant to catch it, and is named.
+4. **lab-instrument-control**: `Link(gpib=10)` finds a GPiBridge when no Prologix is
+   there, `prologix='gpibridge'` asks for it, and `identify` never probes one. Its
+   33120A driver runs through the simulated adapter unchanged.
+5. **Tools on `bell`**, under `~/.local`: `sigrok-cli` and `pulseview` (nightly
+   AppImages), `openocd-xpack` (an OpenOCD that knows the RP2350). `picotool` and
+   `probe-rs` were there. Vivado is not needed: there is no FPGA here.
+6. **Documents**: `BRINGUP.md`, `bringup/REVB.md`, `bringup/STATUS.md`,
+   `bringup/BRINGUP_LOG.md`, a numbered map of the board
+   (`docs/images/bringup_map.png`, made by `tools/bringup_map.py` from the placement
+   table), `HANDBOOK.md`, `AGENTS.md`, both READMEs.
+7. **Lessons** into `~/OpticsPCBs/CLAUDE_PCB.md` section 9 and section 11.
+
+### Found before any board had power
+
+Seven firmware faults, each now with a test that fails without its fix
+(`bringup/REVB.md` section 2):
+
+| fault | how it was found |
+|---|---|
+| a data line over 8192 bytes was dropped: a 16,000-point waveform for the 33120A is 32 kB | reading the code against the lab library's notes; then the library's driver against the simulator |
+| `++spoll` with the bus off drove the unpowered transceivers (and on the Lite asserted ATN off the bus) | reading; planted back, the test counts 376 breaches |
+| two adapters on one cable both took the bus and fought over IFC | the simulated two-board walk counted a fight before it began |
+| NRFD, NDAC and SRQ could blip as the transceivers' 5 V came up | the new check "asserted nothing while looking" |
+| sigrok 0.6 could not read the captures (0 of 12): it names scoped VCD channels `gpib.DIO1` | installing sigrok-cli on `bell`; the check had been skipping itself there |
+| "no listener" counted twice for one failed write | the first simulated `bare` |
+| `++t power 1` while on the bus reinitialised driven pins | reading |
+
+The firmware now **looks before it takes a bus**: powered up as a listening device, it
+reads ATN, REN and IFC for a millisecond, and if another controller holds one it powers
+down again having asserted nothing, and says `"bus":"busy"`.
+
+And for rev B's hardware (`bringup/REVB.md` section 1): the test points are bare 1 mm
+pads where the rule is now a jack; and the RP2354A's four ADC pins are unconnected, so
+the board cannot report its own rails.
+
+### What I need from you
+
+1. **The udev rule**, once, since it needs sudo:
+   `sudo cp tools/60-gpibridge.rules /etc/udev/rules.d/ && sudo udevadm control --reload`.
+   Without it everything works but `picotool reboot -f -u`.
+2. **What is at hand:** the NorComp plugs? A printed housing base? (A board whose plug
+   is soldered without the base can never go into it, so with no base A1 stays a bare
+   bench board.) A GPIB cable? The Debug Probe?
+3. **Then stage 1:** a GPiBridge into `bell`.
+
+### Checks, 2026-11-15 22:30
+
+| check | result |
+|---|---|
+| firmware 0.4.0 for the RP2354A | builds, no warnings, 60.4 kB |
+| "++" protocol (`test_prologix`) | 70 of 70 |
+| pin layer (`test_wire`) | 31,577 pin changes, 0 contention, 0 back-power; the Lite 50,189, 0 driven high |
+| sigrok's decoder on the simulated bus | 12 of 12 (sigrok-cli 0.8.0-git) |
+| the bring-up's steps on simulated boards (`pytest bringup/`) | 28 of 28 |
+| lab-instrument-control `test_scpi_link.py` | 18 of 18 |
+| paths | nothing committed or new names a place on one machine |
+
+Not done: the hardware generators were not touched or rebuilt (nothing in `hardware/`
+changed); stage 3's script has not been simulated (there is no Prologix to simulate);
+nothing has run on a board.
+
+## Prompt 13
+
+I just plugged in a GPiBridge (not the lite version) into USB on a hub. Do what you can now.
+
+## Response 13 2026-11-16 08:41 - 09:25 Claude Opus 5.5
+
+*Nothing is committed. No instrument was touched.*
+
+**Where we are:** A1 has passed stage 1 and the failsafe test, and is parked (green LED
+off). **Next at the bench:** write **A1** on the board with a marker. Then, when you have
+3 minutes and a scope, stage 1b (one probe on four test points); when you have 15
+minutes, stage 2 (the plug, in the housing's base).
+
+### What A1 is
+
+The board came up as `RP2350 Boot` on the first try: USB-C, the crystal and both rails
+good. It is an RP2350 **A4** (so erratum E9 does not apply), serial 9F9D542A93F67D76, now
+**A1**. It runs firmware **0.4.2** and has passed:
+
+| check | A1 |
+|---|---|
+| the firmware, and which board it found | 0.4.2, "GPiBridge rev A" (R21 read high) |
+| 3.3 V rail, by the temperature sensor | about 3.24 V (863 counts; die assumed at 40 C) |
+| crystal against `bell`'s clock | +1.4 to +1.8 ppm |
+| reset to USB configured | 940 ms, through a hub three levels deep (I expected 150-300 ms) |
+| the 5 V switch, all 16 receive paths through both transceivers, their joints to the RP2354A | self-test passes |
+| the bus on and off; a write to an empty bus counted as "no listener" | yes |
+| the capture on core 1; IFC's length | 151 µs |
+| a setting across a reboot, from a fresh start | kept |
+| the second serial port on and off; BOOTSEL by software and back | yes |
+| three deliberate reboots in 10 s | stays in the firmware |
+| three hangs in a row (`++t crash`) | each caught at 2.03 s; the third start goes to BOOTSEL; picotool brings it back |
+
+### Two firmware bugs, found and fixed this morning
+
+`bare` failed its first four runs, each ending in the ROM bootloader. Neither bug was
+in code the simulator runs: both are in `main.c`'s watchdog and flash handling.
+
+1. **The failsafe counted deliberate reboots as crashes.** On the RP2350
+   `watchdog_caused_reboot()` is also true after `++rst` or `++t console`, so three of
+   those within 10 s sent the board to BOOTSEL. It now counts only real watchdog
+   timeouts (`watchdog_enable_caused_reboot()`).
+2. **Settings were saved only after a bus capture had run in that power-up.** The SDK's
+   flash-safe write refuses unless core 1 is started and registered, and only the capture
+   started it. So `++t console 1` came back with one port, and "stay off the bus" was not
+   kept at first. Core 1 now starts at boot, and `++t status` counts refused writes
+   (`settings_errors`).
+
+It took longer than it should have because the step's message ("did not come back
+after a reboot") meant the third reboot, and I chased the first. Logging every byte the
+step sent and diffing it against a hand replay found it. The step now says which reboot
+it waited for and what it saw.
+
+### Also
+
+- `++t crash` (a hang on purpose) and `bringup/run.py failsafe`, so the recovery path
+  every future firmware depends on is tested on the board, not assumed.
+- `++t info` now reports the watchdog's load and rate and why the chip last started.
+  That settled a false alarm from my own stopwatch: closing the serial port blocks for
+  the 2 s a hung board takes to reset.
+- `bringup/REVB.md` 2.8-2.10, `BRINGUP_LOG.md`, `BRINGUP.md` stage 1, `HANDBOOK.md`,
+  `firmware/README.md`; lessons in `~/OpticsPCBs/CLAUDE_PCB.md` section 9.
+
+### Still open from yesterday
+
+- **The udev rule**, which needs sudo:
+  `sudo cp tools/60-gpibridge.rules /etc/udev/rules.d/ && sudo udevadm control --reload`.
+- **What is at hand:** the NorComp plugs, a printed housing base, a GPIB cable, the Debug
+  Probe.
+
+### Checks, 2026-11-16 09:20
+
+| check | result |
+|---|---|
+| firmware 0.4.2 for the RP2354A | builds, no warnings |
+| "++" protocol (`test_prologix`) | 71 of 71 |
+| pin layer (`test_wire`) | 31,577 and 50,189 pin changes, no rule broken |
+| sigrok's decoder | 12 of 12 |
+| the bring-up's steps on simulated boards | 28 of 28 |
+| A1 on the bench: `flash`, `bare`, `failsafe` | pass |
+
+## Prompt 14
+
+What is the STL file to print the housing? I want to print both for this one and for the
+"lite" one. If they are different files, give me both paths.
+
+## Response 14 2026-11-16 12:36 Claude Opus 5.5
+
+*Nothing changed but this log. Nothing is committed.*
+
+**Where we are:** A1 has passed stage 1 and is parked. The next step at the bench is
+stage 2, soldering the plug, and it needs a printed base first.
+
+There are three files: one base fits both boards, and each board has its own lid.
+
+| print | GPiBridge (A1, A2) | GPiBridge Lite (L1, L2) |
+|---|---|---|
+| base | `enclosure/out/gpibridge_base.stl` | `enclosure/out/gpibridge_base.stl` (the same file) |
+| lid | `enclosure/out/gpibridge_lid.stl` | `enclosure/out/gpibridge_lite_lid.stl` |
+
+For four boards (A1, A2, L1, L2) print four bases, two GPiBridge lids and two Lite lids.
+The STLs are current: nothing in `gen/`, `hardware/` or `enclosure/` has changed since
+they were built for the order on 2026-10-06, and `enclosure/out/CHECK.txt` still says no
+overlap for either board.
+
+How to print them on an FDM printer (`enclosure/README.md`):
+- **PETG or ASA, not PLA.** PLA softens on a warm instrument.
+- **The base on its front face, the lids on their top faces.** No supports are needed.
+- **0.12-0.16 mm layers.**
+- **Print one base first** and check that a plug passes its opening and a board drops
+  in. If either is tight, reprint with the slicer's X-Y hole compensation at +0.1 mm.
+- **Screws:** two M2 x 8 thread-forming per housing. An M2 x 10 is too long.
+
+Only the base is needed for stage 2; the lid can wait.
+
+## Prompt 15
+
+I will come in and do the printing and scope work tomorrow. I copied a new CLAUDE_PCB.md
+here. Check in that and everything relevant that you've worked on today. I'll push.
+
+## Response 15 2026-11-16 22:30 Claude Opus 5.5
+
+*Committed, not pushed. No instrument was touched.*
+
+**Where we are:** A1 has passed stage 1 and is parked. **Tomorrow:** print one housing
+base (`enclosure/out/gpibridge_base.stl`) and check the fit; do stage 1b (one x10 probe on
+channel 1, ground clip on J1's shell, then TP3, TP2, TP1 and TP4, each until the scope
+beeps); then stage 2, the plug in the base.
+
+Before committing: `make -C firmware/test` (71 of 71, both pin models clean, sigrok 12 of
+12), `pytest bringup/` (28 of 28), lab-instrument-control's `test_scpi_link.py` (18 of 18).
+The path and email scans found nothing new.
+
+Commits in this repository:
+1. **The rev A bring-up (Prompts 12-15):** the plan, firmware 0.4.2 and its `++t`
+   bring-up commands, the simulated bench, `bringup/`, A1's results, and this log.
+2. **`CLAUDE_PCB.md`:** Jason's copy from OpticsPCBs, as he placed it.
+3. **`PIN_AUDIT.md`:** the pin audit another session wrote on 2026-11-16 (no BLOCKER or
+   HIGH). It is in its own commit, so it can be dropped before pushing. Its one open
+   question, whether R21 back-powers +5V_GPIB with the bus off, is answered by stage 1b,
+   which records TP4 with the bus switched off.
+
+In lab-instrument-control, one commit holds only this project's files (`scpi_link.py`,
+`test_scpi_link.py`, `gpib/gpib.md`), which teach `Link` to use a GPiBridge.
+`bench_claims.py` and the other sessions' changes there are left as they were.

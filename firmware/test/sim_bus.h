@@ -10,7 +10,11 @@ extern bool sim_present;
 extern uint8_t sim_status;
 extern char sim_last_message[256];
 extern int sim_sdc_count, sim_get_count, sim_gtl_count;
+extern bool sim_srq;                    /* it holds SRQ asserted until it is serial-polled */
+extern unsigned long sim_bytes_in, sim_sum_in;   /* every data byte it took, and their sum */
+extern bool sim_last_eoi;               /* its last message ended with EOI */
 extern bool sim_lite;                   /* test_prologix: what hal_lite() answers */
+extern bool sim_other_controller;       /* test_prologix: another controller holds REN */
 
 void sim_reset(void);
 bool sim_ren(void);

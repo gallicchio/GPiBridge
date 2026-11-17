@@ -36,13 +36,16 @@ void capture_vcd(const capture_entry *e, size_t n, uint32_t ticks_per_us, uint32
     char line[160];
     snprintf(line, sizeof line, "$comment %s: GPIB at the RP2354A's bus pins, low = asserted $end\n", version);
     put(out, line);
-    snprintf(line, sizeof line, "$timescale %lu ns $end\n$scope module gpib $end\n", (unsigned long)timescale_ns);
+    /* No $scope: sigrok has named a scoped channel "gpib.DIO1" since libsigrok
+     * 0.6, and plain "DIO1" before; unscoped, every version says "DIO1", the
+     * name its ieee488 decoder and PulseView look for. */
+    snprintf(line, sizeof line, "$timescale %lu ns $end\n", (unsigned long)timescale_ns);
     put(out, line);
     for (size_t i = 0; i < N_SIGNAL; i++) {
         snprintf(line, sizeof line, "$var wire 1 %c %s $end\n", (char)('!' + i), SIGNAL[i].name);
         put(out, line);
     }
-    put(out, "$upscope $end\n$enddefinitions $end\n");
+    put(out, "$enddefinitions $end\n");
     if (!n) {
         put(out, "$comment end $end\n");
         return;

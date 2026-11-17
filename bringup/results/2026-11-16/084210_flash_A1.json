@@ -1,0 +1,59 @@
+{
+ "step": "flash",
+ "board": "A1",
+ "at": "2026-11-16 08:42:10",
+ "sim": false,
+ "ok": true,
+ "checks": [
+  {
+   "what": "an RP2354A is waiting in its ROM bootloader (2e8a:000f)",
+   "ok": true,
+   "got": 1,
+   "want": "one or more"
+  },
+  {
+   "what": "picotool load and verify, USB 1-6.4.4.2",
+   "ok": true,
+   "got": "      [============================= ]  99%\nVerifying Flash:      [==============================]  100%\n  OK\n\nThe device was rebooted to start the application.",
+   "want": "ok"
+  },
+  {
+   "what": "A1 (9F9D542A93F67D76) runs the new firmware",
+   "ok": true,
+   "got": "GPiBridge GPIB-USB controller version 0.4.0",
+   "want": "0.4.0"
+  }
+ ],
+ "notes": [],
+ "uf2": "firmware/build-bell/gpibridge.uf2",
+ "uf2_built": "2026-11-15 22:29:16",
+ "loaded": [
+  {
+   "at": "1-6.4.4.2",
+   "device": [
+    "Device Information",
+    " type:                 RP2350",
+    " package:              QFN60",
+    " chipid:               0x9f9d542a93f67d76",
+    " flash devinfo:        0x0c00",
+    " current cpu:          ARM",
+    " available cpus:       ARM, RISC-V",
+    " default cpu:          ARM",
+    " secure boot:          0",
+    " debug enable:         1",
+    " secure debug enable:  1",
+    " flash size:           not determined due to erased start of flash"
+   ],
+   "load": [
+    "Verifying Flash:      [==============================]  100%",
+    "  OK",
+    "",
+    "The device was rebooted to start the application."
+   ],
+   "ok": true
+  }
+ ],
+ "boards": [
+  "A1"
+ ]
+}

@@ -21,6 +21,11 @@ uint8_t gpib_my_address = 21;           /* an HP controller's habit; never an in
 
 static bool powered;
 static bool talking;                     /* our transceivers' direction */
+static bool raw;                         /* bring-up has the lines (gpib_raw): the engine stands down */
+static bool busy;                        /* the last start found another controller, and stood back */
+
+/* the engine may use the bus: powered, and not lent to "++t raw" */
+static bool ready(void) { return powered && !raw; }
 
 const char *gpib_status_name(gpib_status s)
 {
@@ -28,7 +33,7 @@ const char *gpib_status_name(gpib_status s)
     case GPIB_OK: return "ok";
     case GPIB_TIMEOUT: return "timeout";
     case GPIB_NO_LISTENER: return "no listener";
-    case GPIB_OFF: return "bus power off";
+    case GPIB_OFF: return raw ? "raw mode" : busy ? "another controller has the bus" : "bus power off";
     }
     return "?";
 }
@@ -114,25 +119,58 @@ static gpib_status receive_byte(uint8_t *b, bool *eoi)
 }
 
 /* ---------------------------------------------------------------------------- */
-void gpib_start(void)
+/* Is somebody else running this bus?  Only a controller asserts ATN, REN or
+ * IFC, and one in charge holds REN (a Prologix, an NI board and this firmware
+ * all do) or ATN.  Called with the transceivers powered as a listening device
+ * and nothing of ours asserted: we look for a millisecond and touch nothing. */
+static bool another_controller(void)
 {
+    uint64_t t0 = hal_us();
+    do {
+        if (hal_get(L_REN) || hal_get(L_ATN) || hal_get(L_IFC))
+            return true;
+    } while (hal_us() - t0 < 1000);
+    return false;
+}
+
+bool gpib_start(bool force)
+{
+    if (powered)
+        gpib_stop();                     /* never hal_init() with pins driven */
     hal_init();                          /* everything released, transceivers off */
     hal_power(true);
     hal_delay_us(5000);                  /* the 5 V settles and the transceivers wake */
     talking = false;
+    busy = !force && another_controller();
+    if (busy) {
+        /* Two controllers on one bus drive ATN, REN and IFC against each other,
+         * 48 mA drivers both.  Stand back: off the bus again, and say so. */
+        hal_power(false);
+        gpib_count.refused++;
+        return false;
+    }
     hal_talk(false);                     /* our listener outputs to a known state */
     hal_controller(true);                /* DC low: ATN, REN, IFC are ours (released) */
     hal_totem(true);
     powered = true;
+    raw = false;
     gpib_ifc();                          /* we are controller in charge */
     gpib_ren(true);                      /* instruments go remote when addressed, as with a Prologix */
     gpib_idle();
+    return true;
 }
 
 void gpib_stop(void)
 {
+    busy = false;
     if (!powered) {
         hal_init();                      /* still: every pin to its safe state */
+        return;
+    }
+    if (raw) {
+        hal_raw_end();                   /* nothing driven, a listening device */
+        hal_power(false);
+        powered = raw = false;
         return;
     }
     hal_set(L_REN, false);
@@ -145,10 +183,38 @@ void gpib_stop(void)
 }
 
 bool gpib_powered(void) { return powered; }
+bool gpib_busy(void) { return busy; }
+
+/* ---- bring-up: the board as sixteen wires ------------------------------------
+ * The engine lets go of the bus and lends it to "++t raw" until gpib_start()
+ * or gpib_stop().  From off, the bus powers up straight into the role: no
+ * IFC, no REN, nothing asserted. */
+void gpib_raw(raw_role role)
+{
+    busy = false;
+    if (!powered) {
+        hal_init();
+        hal_power(true);
+        hal_delay_us(5000);
+        powered = true;
+        hal_totem(true);
+    } else if (!raw) {
+        hal_set(L_REN, false);
+        hal_set(L_ATN, false);
+        hal_set(L_IFC, false);
+        become_listener();
+        hal_controller(false);
+    }
+    talking = false;
+    raw = true;
+    hal_raw_role(role);
+}
+
+bool gpib_is_raw(void) { return raw; }
 
 void gpib_ifc(void)
 {
-    if (!powered)
+    if (!ready())
         return;
     hal_set(L_IFC, true);
     hal_delay_us(150);                   /* as long as a Prologix holds it (IEEE 488.1: >= 100 us) */
@@ -157,15 +223,15 @@ void gpib_ifc(void)
 
 void gpib_ren(bool on)
 {
-    if (powered)
+    if (ready())
         hal_set(L_REN, on);
 }
 
-bool gpib_srq(void) { return powered && hal_get(L_SRQ); }
+bool gpib_srq(void) { return ready() && hal_get(L_SRQ); }
 
 gpib_status gpib_command(const uint8_t *cmd, size_t n)
 {
-    if (!powered)
+    if (!ready())
         return GPIB_OFF;
     hal_set(L_ATN, true);                /* every device stops and listens to commands */
     become_talker();
@@ -203,7 +269,7 @@ gpib_status gpib_talk_start(int pad, int sad)
     return GPIB_OK;
 }
 
-gpib_status gpib_talk_byte(uint8_t b, bool eoi) { return powered ? send_byte(b, eoi) : GPIB_OFF; }
+gpib_status gpib_talk_byte(uint8_t b, bool eoi) { return ready() ? send_byte(b, eoi) : GPIB_OFF; }
 
 gpib_status gpib_listen_start(int pad, int sad)
 {
@@ -217,12 +283,14 @@ gpib_status gpib_listen_start(int pad, int sad)
     return GPIB_OK;
 }
 
-gpib_status gpib_listen_byte(uint8_t *b, bool *eoi) { return powered ? receive_byte(b, eoi) : GPIB_OFF; }
+gpib_status gpib_listen_byte(uint8_t *b, bool *eoi) { return ready() ? receive_byte(b, eoi) : GPIB_OFF; }
 
 gpib_status gpib_serial_poll(int pad, int sad, uint8_t *status)
 {
     uint8_t cmd[6];
     size_t k = 0;
+    if (!ready())
+        return GPIB_OFF;                 /* and no pin moves: the lines below would drive an unpowered bus */
     cmd[k++] = GPIB_UNL;
     cmd[k++] = (uint8_t)(GPIB_LAD | gpib_my_address);
     cmd[k++] = GPIB_SPE;
@@ -245,10 +313,12 @@ gpib_status gpib_serial_poll(int pad, int sad, uint8_t *status)
 
 void gpib_idle(void)
 {
-    if (!powered)
+    if (!ready())
         return;
     uint8_t cmd[2] = {GPIB_UNT, GPIB_UNL};
+    uint32_t nobody = gpib_count.no_listener;
     gpib_command(cmd, 2);                /* ATN stays asserted: every device waits for commands */
+    gpib_count.no_listener = nobody;     /* an empty bus is no news here: the transfer before this counted it */
 }
 
 gpib_status gpib_send_to(int pad, int sad, const uint8_t *data, size_t n, bool eoi_last)

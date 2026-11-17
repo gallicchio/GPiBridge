@@ -297,9 +297,10 @@ written. `PLAN.md` §3 has the target.
 | CPL positions | JLCPCB's model origin per part (`mfg/footprint_check.py`'s datum) | J1, the USB-C, moved 1.572 mm in the JLCPCB CPL: their origin sits nearer the pad row. Before this, every USB-C hung off the board in the preview |
 | housing against each board's 3D model | `enclosure/build.py` | 0 overlaps, both boards |
 | housing against NorComp's own plug model | `enclosure/build.py`, with `reference/` | no overlap; 0.30 mm at the closest |
-| "++" protocol | `firmware/test/test_prologix.c` | 32 of 32 |
-| pin directions, power, data path | `firmware/test/test_wire.c` | 7378 pin changes, 0 contention, 0 back-power |
-| the Lite's pins: open-drain, never high | `firmware/test/test_wire.c lite` | 10748 pin changes, 0 driven high, 0 without the override, 0 asserted off the bus |
+| "++" protocol | `firmware/test/test_prologix.c` | 32 of 32 (70 of 70 with firmware 0.4.0, 2026-11-15) |
+| pin directions, power, data path | `firmware/test/test_wire.c` | 7378 pin changes, 0 contention, 0 back-power (31,577 with 0.4.0's raw roles, self-test and second-controller cases) |
+| the Lite's pins: open-drain, never high | `firmware/test/test_wire.c lite` | 10748 pin changes, 0 driven high, 0 without the override, 0 asserted off the bus (50,189 with 0.4.0) |
+| the bring-up's steps, and lab-instrument-control's 33120A driver, against the firmware | `pytest bringup/` on `firmware/test/sim_board` (2026-11-15) | 28 of 28: good boards pass, each planted fault is named, a second controller stands back |
 | the bus, read by an independent decoder | `firmware/test/sigrok_check.py` (sigrok-cli's `ieee488`) | 12 of 12 recordings (6 per board) decode to exactly the bytes sent |
 | a full rebuild | `python3 build.py` | both boards, every check passes, the same files byte for byte |
 
@@ -337,6 +338,13 @@ about it, and what is left.
      interface, with Microsoft OS 2.0 descriptors, VID:PID 1209:0001;
    - the 2 µs data-settle and 150 µs IFC timings against a real bus;
    - an instrument that drives EOI or SRQ in ways the simulated one does not.
+
+   **Found before any board had power** (2026-11-15, by simulation and reading;
+   `bringup/REVB.md` section 2): a data line over 8192 bytes was dropped (a 16,000-point
+   upload is 32 kB); a serial poll with the bus off drove the unpowered transceivers; two
+   adapters on one cable fought over IFC; NRFD, NDAC and SRQ could blip as the 5 V came
+   and went; the captures' channel names did not suit sigrok 0.6. All fixed in 0.4.0,
+   each with a test.
 
    **Done:**
    - four ways in (§2.7);

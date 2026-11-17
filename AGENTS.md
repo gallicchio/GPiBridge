@@ -4,6 +4,10 @@ GPiBridge is a USB-C to GPIB adapter: an RP2354A, two TI IEEE-488 transceivers, 
 24-pin GPIB plug under the board. Start with `README.md`, then `PLAN.md` (decisions)
 and `DESIGN_NOTES.md` (why). This file is how to change it without breaking it.
 
+**Rev A is being brought up (from 2026-11-15).** Read `bringup/STATUS.md` first: it
+says where the bring-up stands and what the next thing at the bench is. "The bring-up"
+below has the rules.
+
 ## Ground rules
 
 - **Generated, not drawn.** `hardware/` is written by `gen/`: never edit the KiCad files
@@ -80,11 +84,26 @@ make -C firmware/test              # test_prologix: the "++" layer and the engin
                                    # instrument; test_wire: the pin layer against the transceivers'
                                    # function tables (no two drivers on a wire, nothing into unpowered
                                    # chips); sigrok_check.py: sigrok's IEEE-488 decoder reads the
-                                   # simulated bus (needs sigrok-cli, else skipped)
+                                   # simulated bus (needs sigrok-cli, else skipped); builds sim_board
+python3 bringup/run.py build       # all of it, into firmware/build-<this computer>/; use this on `bell`,
+                                   # whose PATH puts Vitis's CMake 3.3 and an old arm-none-eabi-gcc first
+pytest bringup/                    # every bring-up step against sim_board, good boards and planted faults
 ```
 
-- `src/gpib.c`: the IEEE-488 handshakes and addressing. Every wait has a timeout.
-- `src/prologix.c`: the "++" command set.
+- `test/sim_board`: the firmware above the SDK behind a pseudo-terminal, on
+  `test/wire_model.c`'s model of the transceivers. Anything that talks to an adapter
+  runs against it: `tools/gpibridge.py --port PTY ...`, `bringup/run.py --sim STEP`,
+  lab-instrument-control's `Link(gpib=10, prologix=PTY)`. Run a host program against it
+  before running it against a board.
+- **A check that says "skipped" has not run.** `sigrok_check.py` skipped itself on `bell`
+  until sigrok-cli was installed there, and then failed 0 of 12 (`bringup/REVB.md` 2.3).
+  The tools are in `~/.local/bin` now: `sigrok-cli`, `pulseview`, `picotool`,
+  `openocd-xpack` (an OpenOCD with the RP2350; the system's has none), `probe-rs`.
+
+- `src/gpib.c`: the IEEE-488 handshakes and addressing. Every wait has a timeout. It
+  looks for another controller before it takes the bus (`gpib_start()`).
+- `src/prologix.c`: the "++" command set. A data line past the buffer streams.
+- `src/bringup.c`: `++t raw`, `++t lines`, `++t selftest`: the board as sixteen wires.
 - `src/hal_rp2350.c`: the pins, and the direction changes that keep the RP2354A and
   the transceivers from driving one wire. `test/test_wire.c` checks every change.
 - `src/capture*.c`: the bus capture on core 1, and its VCD.
@@ -96,13 +115,13 @@ make -C firmware/test              # test_prologix: the "++" layer and the engin
 
 ## Flashing and debugging a board on the bench
 
-`BRINGUP.md` is the plan: the shopping list, what plugs where, and the stages, from the
-bare board to the dearer instruments. On Linux, install `tools/60-gpibridge.rules` first
-(the file says how). Then `picotool` works without sudo, and neither USB autosuspend nor
-ModemManager interferes.
+On Linux, install `tools/60-gpibridge.rules` first (the file says how; it needs sudo,
+so it is Jason's to run). Then `picotool` reaches the reset interface without sudo, and
+neither USB autosuspend nor ModemManager interferes.
 
-- `python3 tools/gpibridge.py list | status | idn N | ask N "Q?" | send N "CMD" | test N |
-  capture N "Q?" FILE | bootsel | flash FILE.uf2 | console-port on|off | console`
+- `python3 tools/gpibridge.py list | status | info | selftest | lines | identify | idn N |
+  ask N "Q?" | send N "CMD" | test N | capture N "Q?" FILE | bootsel | flash FILE.uf2 |
+  console-port on|off | console` (`--port PTY` for a simulated board)
 - The firmware never needs the BOOT button:
   - `tools/gpibridge.py flash` sends `++t bootsel`, then `picotool load`;
   - `picotool reboot -f -u` uses the reset interface;
@@ -116,8 +135,38 @@ ModemManager interferes.
   a handshake.
 - **A Raspberry Pi Debug Probe** (D port on J3, U port on J4) loads and debugs the
   firmware over SWD when USB does not work:
-  `openocd -f interface/cmsis-dap.cfg -f target/rp2350.cfg`, with OpenOCD's RP2350
-  support. An ST-Link V2 cannot do this (`BRINGUP.md` §5).
+  `openocd-xpack -f interface/cmsis-dap.cfg -f target/rp2350.cfg` (the system's OpenOCD
+  0.12.0 has no RP2350). An ST-Link V2 cannot do this (`BRINGUP.md`, "The SWD and UART
+  connectors").
+
+## The bring-up
+
+`BRINGUP.md` is the plan; `bringup/` runs it (`bringup/README.md`).
+
+- **Jason's time at the bench is the scarce thing.** He comes by for minutes, between
+  other boards' bring-ups, and must be able to do the right physical thing at once. So:
+  - **start every message of a bench session with where we are and the one next thing
+    for him to do**, from `bringup/STATUS.md` (`python3 bringup/run.py` prints and
+    refreshes it), naming the board (A1, L1), the connector or test point as the
+    silkscreen prints it, and the instrument and channel;
+  - never ask him to solder a wire or hold a probe for longer than a beep;
+  - when a step fails, say whether the board should be left as it is (usually) and
+    what, if anything, is his to do.
+- **One step a call:** `python3 bringup/run.py bare A1`. A step writes its record to
+  `bringup/results/<day>/`, appends to `bringup/BRINGUP_LOG.md` and rewrites
+  `bringup/STATUS.md`. Commit those with the work they belong to, when asked to commit.
+- **Every step leaves the board parked**: off the bus, `++t autostart 0` saved. Leave
+  it so. `run.py unpark A1` is for the day a board goes into service.
+- **Simulate first.** Change a step, or the firmware, and run `pytest bringup/` and
+  `make -C firmware/test` before the board sees it. A new step gets a simulated run and
+  a planted fault that it must catch.
+- **What a board teaches goes into `bringup/REVB.md`** the same day: hardware for rev B,
+  firmware as it is fixed, and the open-questions table as each is answered.
+- **The bench is shared.** Before touching an instrument: Jason has said, in this
+  session, that it is cabled to this board; then claim it
+  (`python3 ../../lab-instrument-control/bench_claims.py claim SDS1104XE:1 --by GPiBridge
+  --to "A1 test points, by hand" --limit "5.3 V"`), and release it when the board is
+  uncabled. `bringup/bench.py` refuses an instrument this project does not hold.
 
 ## Bench instruments
 

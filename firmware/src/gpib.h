@@ -9,12 +9,13 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "gpib_hal.h"
 
 typedef enum {
     GPIB_OK = 0,
     GPIB_TIMEOUT,          /* a handshake line did not move in time */
     GPIB_NO_LISTENER,      /* we would talk, but nobody is listening (NRFD and NDAC both released) */
-    GPIB_OFF,              /* the transceivers are unpowered */
+    GPIB_OFF,              /* the transceivers are unpowered, or the lines are lent to "++t raw" */
 } gpib_status;
 
 const char *gpib_status_name(gpib_status s);
@@ -28,15 +29,24 @@ enum {
 
 typedef struct {
     uint32_t bytes_out, bytes_in, timeouts, no_listener;
+    uint32_t refused;      /* starts that found another controller on the bus and stood back */
 } gpib_counters;
 
 extern gpib_counters gpib_count;
 extern uint32_t gpib_timeout_us;        /* each handshake step's limit (++read_tmo_ms sets it) */
 extern uint8_t gpib_my_address;         /* ours, when we address ourselves to talk or listen */
 
-void gpib_start(void);                  /* power up released, become system controller, IFC */
+/* Power up released, look for another controller, become system controller,
+ * IFC.  False, with the bus off again and nothing ever asserted, if somebody
+ * else holds ATN, REN or IFC; force skips the look (a bus with a line stuck). */
+bool gpib_start(bool force);
+bool gpib_busy(void);                   /* the last start stood back for another controller */
 void gpib_stop(void);                   /* release everything, power off */
 bool gpib_powered(void);
+/* bring-up: the lines by hand, in one of the transceivers' four roles
+ * (gpib_hal.h); the engine stands down until gpib_start() or gpib_stop() */
+void gpib_raw(raw_role role);
+bool gpib_is_raw(void);
 void gpib_ifc(void);                    /* interface clear: 150 us, as a Prologix does */
 void gpib_ren(bool on);
 bool gpib_srq(void);

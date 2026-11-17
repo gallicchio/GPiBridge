@@ -40,6 +40,7 @@ void capture_vcd(const capture_entry *e, size_t n, uint32_t ticks_per_us, uint32
                  const char *version, void (*out)(const char *s, size_t len));
 
 /* on the board (capture_rp2350.c) */
+void capture_init(void);                   /* at boot: core 1 started, asleep, and safe for flash writes */
 void capture_start(void);
 void capture_stop(void);
 size_t capture_count(void);

@@ -1,0 +1,283 @@
+{
+ "step": "bare",
+ "board": "A1",
+ "at": "2026-11-16 09:14:17",
+ "sim": false,
+ "ok": true,
+ "checks": [
+  {
+   "what": "++ver names the firmware",
+   "ok": true,
+   "got": "GPiBridge GPIB-USB controller version 0.4.2",
+   "want": "GPiBridge ... version 0.4.2"
+  },
+  {
+   "what": "the firmware read the board it is on (R21 on DC)",
+   "ok": true,
+   "got": "GPiBridge GPIB-USB controller version 0.4.2",
+   "want": "GPiBridge rev A"
+  },
+  {
+   "what": "the 3.3 V rail, by the temperature sensor against it",
+   "ok": true,
+   "got": 864,
+   "want": "758..936 (3.3 V within 3 %, die at 25-60 C)"
+  },
+  {
+   "what": "the system clock",
+   "ok": true,
+   "got": 150000,
+   "want": 150000
+  },
+  {
+   "what": "not restarted by the watchdog",
+   "ok": true,
+   "got": 0,
+   "want": 0
+  },
+  {
+   "what": "reset to USB configured",
+   "ok": true,
+   "got": 1326,
+   "want": "20..2000 ms"
+  },
+  {
+   "what": "the 12 MHz crystal against this PC",
+   "ok": true,
+   "got": 1.8,
+   "want": "within 100 ppm"
+  },
+  {
+   "what": "the self-test (5 V switch, receive paths, joints)",
+   "ok": true,
+   "got": "ok",
+   "want": "ok"
+  },
+  {
+   "what": "++t power 1, then 0",
+   "ok": true,
+   "got": [
+    "controller",
+    "off"
+   ],
+   "want": [
+    "controller",
+    "off"
+   ]
+  },
+  {
+   "what": "a write to an empty bus is counted as \"no listener\"",
+   "ok": true,
+   "got": 1,
+   "want": 1
+  },
+  {
+   "what": "a setting survives a reboot (flash)",
+   "ok": true,
+   "got": "7",
+   "want": "7"
+  },
+  {
+   "what": "no settings write refused by the flash",
+   "ok": true,
+   "got": 0,
+   "want": 0
+  },
+  {
+   "what": "the capture saw the bus start: IFC asserted for the time the firmware holds it",
+   "ok": true,
+   "got": [
+    225.2,
+    151.4
+   ],
+   "want": "unpowered, then one pulse of 140..400 us"
+  },
+  {
+   "what": "++t console 1: a second serial port, which answers \"status\" in JSON",
+   "ok": true,
+   "got": "{\"version\":\"0.4.2\",\"bus_power\":0,\"srq\":0,\"addr\":1,\"bytes_out\":0,\"bytes_in\":0,\"ti",
+   "want": "a JSON line"
+  },
+  {
+   "what": "++t console 0: one port again, as a Prologix",
+   "ok": true,
+   "got": null,
+   "want": null
+  },
+  {
+   "what": "three deliberate reboots within 10 s (++rst, console on, off) are not taken for crashes",
+   "ok": true,
+   "got": "running",
+   "want": "running"
+  },
+  {
+   "what": "++t bootsel: the RP2354A appears in its ROM bootloader",
+   "ok": true,
+   "got": [
+    "/sys/bus/usb/devices/1-6.4.4.2"
+   ],
+   "want": "one RP2350 Boot device"
+  },
+  {
+   "what": "picotool reboot: back into the firmware",
+   "ok": true,
+   "got": "The device was rebooted into application mode.",
+   "want": "ok"
+  },
+  {
+   "what": "parked: off the bus, and told to stay off it",
+   "ok": true,
+   "got": [
+    "off",
+    0
+   ],
+   "want": [
+    "off",
+    0
+   ]
+  }
+ ],
+ "notes": [],
+ "serial": "9F9D542A93F67D76",
+ "kind": "GPiBridge rev A",
+ "ver": "GPiBridge GPIB-USB controller version 0.4.2",
+ "info": {
+  "version": "0.4.2",
+  "board": "GPiBridge rev A",
+  "serial": "9F9D542A93F67D76",
+  "chip_rev": 3,
+  "chip_reset": "0x00010000",
+  "vreg": "0x000000b0",
+  "watchdog_reset": 0,
+  "temp_raw": 864,
+  "sys_khz": 150000,
+  "flash_kb": 2048,
+  "uptime_ms": 4633,
+  "wd_load": 2000000,
+  "wd_per_ms": 1002,
+  "wd_tick": "0x3/12",
+  "boot_reason": 1,
+  "boot_scratch4": "0x00000000"
+ },
+ "rail_3v3_implied": 3.241,
+ "status": {
+  "version": "0.4.2",
+  "bus_power": 0,
+  "bus": "off",
+  "srq": 0,
+  "addr": 1,
+  "bytes_out": 0,
+  "bytes_in": 0,
+  "timeouts": 0,
+  "no_listener": 0,
+  "autostart": 0,
+  "board": "GPiBridge rev A",
+  "usb_ready_ms": 1326,
+  "console": 0,
+  "capture": "idle",
+  "changes": 0,
+  "settings_errors": 0,
+  "us": 4634189
+ },
+ "crystal_ppm": 1.8,
+ "crystal_readings": 60,
+ "crystal_seconds": 39.4,
+ "selftest": [
+  {
+   "selftest": "off",
+   "down": "0xffff"
+  },
+  {
+   "selftest": "dev_listen",
+   "reads": "0x73ff",
+   "up": "0x0000",
+   "down": "0x0000"
+  },
+  {
+   "selftest": "dev_talk",
+   "reads": "0x7c00",
+   "up": "0x0000",
+   "down": "0x0100"
+  },
+  {
+   "selftest": "ctrl_listen",
+   "reads": "0x82ff",
+   "up": "0x0000",
+   "down": "0x0000"
+  },
+  {
+   "selftest": "ctrl_talk",
+   "reads": "0x8c00",
+   "up": "0x0000",
+   "down": "0x0000"
+  },
+  {
+   "selftest": "done",
+   "board": "GPiBridge rev A",
+   "ok": true
+  }
+ ],
+ "selftest_trouble": [],
+ "reboot_s": 1.12,
+ "usb_ready_ms_after_reboot": 944,
+ "capture_changes": 30,
+ "ifc_pulse_us": [
+  225.2,
+  151.4
+ ],
+ "picotool_info": [
+  "Program Information",
+  " name:                   gpibridge",
+  " features:               UART stdin / stdout",
+  " binary start:           0x10000000",
+  " binary end:             0x1000f0d4",
+  " target chip:            RP2350",
+  " image type:             ARM Secure",
+  "",
+  "Fixed Pin Information",
+  " 16:                     UART0 TX, UART0 TX",
+  " 17:                     UART0 RX, UART0 RX",
+  " 22:                     LED",
+  "",
+  "Build Information",
+  " sdk version:            2.1.1",
+  " pico_board:             gpibridge",
+  " boot2_name:             boot2_w25q080",
+  " build date:             Nov 15 2026",
+  " build attributes:       Release",
+  "",
+  "Metadata Block 1",
+  " address:                0x10000138",
+  " next block address:     0x1000f0c0",
+  " block type:             image def",
+  " target chip:            RP2350",
+  " image type:             ARM Secure",
+  " extra security:         not enabled",
+  "",
+  "Metadata Block 2",
+  " address:                0x1000f0c0",
+  " next block address:     0x10000138",
+  " block type:             ignored",
+  "",
+  "Device Information",
+  " type:                   RP2350",
+  " revision:               A4",
+  " package:                QFN60",
+  " chipid:                 0x9f9d542a93f67d76",
+  " flash devinfo:          0x0c00",
+  " current cpu:            ARM",
+  " available cpus:         ARM, RISC-V",
+  " default cpu:            ARM",
+  " secure boot:            0",
+  " debug enable:           1",
+  " secure debug enable:    1",
+  " boot_random:            37bcc30e:87fb50da:5ddd5933:7a0076c6",
+  " boot type:              bootsel",
+  " last booted partition:  slot 0",
+  " reboot param 0:         0x00000000",
+  " reboot param 1:         0xffffffff",
+  " rom gitrev:             0xa8bfe860",
+  " flash size:             2048K"
+ ],
+ "bootsel_back_s": 2.33
+}

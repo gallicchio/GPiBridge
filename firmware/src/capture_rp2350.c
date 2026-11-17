@@ -8,6 +8,11 @@
  *
  * Settings writes stop core 1 for their ~45 ms (flash_safe_execute's lockout:
  * flash_safe_execute_core_init() below); a capture then has a gap.
+ *
+ * Core 1 is started at boot, asleep, not at the first capture: the SDK's
+ * flash_safe_execute() refuses to write (PICO_ERROR_NOT_PERMITTED) while core
+ * 1 is not a lockout victim, so until a capture had run no setting was ever
+ * saved (rev A's first board, bringup/REVB.md 2.9).
  */
 #include "capture.h"
 #include "hardware/structs/sio.h"
@@ -59,18 +64,23 @@ static void core1_main(void)
     }
 }
 
+void capture_init(void)
+{
+    if (!core1_running) {
+        multicore_launch_core1(core1_main);
+        core1_running = true;
+    }
+}
+
 void capture_start(void)
 {
     capture_stop();
+    capture_init();
     tick_start(TICK_TIMER1, 1);              /* 12 MHz: one tick per clk_ref cycle */
     count = 0;
     stop_request = false;
     __dmb();
     state = RUNNING;
-    if (!core1_running) {
-        multicore_launch_core1(core1_main);
-        core1_running = true;
-    }
     __sev();
 }
 

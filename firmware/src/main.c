@@ -12,11 +12,16 @@
  *     and only once the host has configured us (they draw more than the
  *     100 mA an unconfigured USB device may);
  *   - every wait on the bus has a timeout, and a watchdog catches the rest;
- *   - three watchdog resets in a row reboot into BOOTSEL, so a bad image
- *     can always be replaced over USB, with nobody pressing BOOT.
+ *   - three watchdog timeouts in a row reboot into BOOTSEL, so a bad image
+ *     can always be replaced over USB, with nobody pressing BOOT.  Only a
+ *     timeout counts (watchdog_enable_caused_reboot): on the RP2350
+ *     watchdog_caused_reboot() is also true after a deliberate reboot
+ *     (++rst, ++t console), and three of those in ten seconds sent rev A's
+ *     first board to BOOTSEL on its first day (bringup/REVB.md 2.8).
  *
  * LEDs: yellow (USB) blinks until the host has configured us, then stays on
  * and blinks off on traffic; red (ERR) lights for a second after a bus error;
+ * "++t identify" flashes the two against each other, to tell boards apart;
  * green (BUS) is lit by the transceivers' own 5 V (on GPiBridge Lite, by the
  * same signal, BUS_PWR_EN: while the firmware is on the bus).
  *
@@ -28,7 +33,13 @@
 #include "pico/stdlib.h"
 #include "pico/bootrom.h"
 #include "pico/flash.h"
+#include "pico/unique_id.h"
+#include "hardware/adc.h"
+#include "hardware/clocks.h"
 #include "hardware/flash.h"
+#include "hardware/structs/powman.h"
+#include "hardware/structs/ticks.h"
+#include "hardware/sync.h"
 #include "hardware/watchdog.h"
 #include "tusb.h"
 #include "board_pins.h"
@@ -44,6 +55,8 @@
 #define SETTINGS_OFFSET (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE)
 #define SETTINGS_MAGIC 0x47506942u      /* "GPiB" */
 #define CRASHES_TO_BOOTSEL 3
+
+static void bus_start(void);
 
 /* ---- the console ------------------------------------------------------------ */
 static void console_line(const char *s)
@@ -83,6 +96,7 @@ static const prologix_config *settings_load(void)
 
 static prologix_config pending;
 static bool dirty;
+static uint32_t settings_errors;         /* settings writes the flash refused */
 static uint64_t dirty_at;
 
 static void settings_write_now(void *arg)
@@ -114,10 +128,15 @@ static void settings_save(const prologix_config *cfg)
 static void settings_flush(void)
 {
     dirty = false;
-    if (flash_safe_execute(settings_write_now, NULL, 100) == PICO_OK)
+    int rc = flash_safe_execute(settings_write_now, NULL, 100);
+    char s[80];
+    if (rc == PICO_OK) {
         console_line("{\"event\":\"settings\",\"saved\":true}");
-    else
-        console_line("{\"event\":\"settings\",\"error\":\"flash busy\"}");
+    } else {
+        settings_errors++;
+        snprintf(s, sizeof s, "{\"event\":\"settings\",\"error\":\"flash_safe_execute %d\"}", rc);
+        console_line(s);
+    }
 }
 
 static void settings_poll(void)
@@ -127,7 +146,9 @@ static void settings_poll(void)
 }
 
 /* ---- USB -------------------------------------------------------------------- */
-static uint64_t traffic_at, error_at, usb_ready_us;
+static uint64_t traffic_at, error_at, usb_ready_us, identify_until;
+static bool crashed_before;              /* this start followed a watchdog timeout: a hang or a fault */
+static uint32_t boot_reason, boot_scratch4; /* WATCHDOG REASON (1 timer, 2 force) and SCRATCH4 as this start found them */
 
 void usb_poll(void)
 {
@@ -193,9 +214,65 @@ static const char *board_name(void) { return hal_lite() ? "GPiBridge Lite " GPIB
 /* the fields ++t status and the console's status add to the bus counters */
 static void status_extra(char *json, size_t n)
 {
-    snprintf(json, n, ",\"board\":\"%s\",\"usb_ready_ms\":%lu,\"console\":%d,\"capture\":\"%s\",\"changes\":%lu",
+    snprintf(json, n, ",\"board\":\"%s\",\"usb_ready_ms\":%lu,\"console\":%d,\"capture\":\"%s\",\"changes\":%lu,"
+             "\"settings_errors\":%lu,\"us\":%llu",
              board_name(), (unsigned long)(usb_ready_us / 1000), prologix_cfg.console_port, capture_state(),
-             (unsigned long)capture_count());
+             (unsigned long)capture_count(), (unsigned long)settings_errors, (unsigned long long)time_us_64());
+}
+
+/* ++t info: what the chip says about itself.  Nothing here needs a probe:
+ *   chip_rev    the RP2350's stepping (2 = A2, which has erratum E9);
+ *   chip_reset  POWMAN's record of why the chip last reset (datasheet: CHIP_RESET);
+ *   vreg        the core regulator's control word (POWMAN VREG);
+ *   temp_raw    the temperature sensor through the 12-bit ADC, whose reference
+ *               is the 3.3 V rail: a diode drop of about 0.7 V over the rail,
+ *               so a rail that is far off shows here (876 at 3.30 V and 27 C);
+ *   sys_khz     the system clock, from the 12 MHz crystal. */
+static void info(char *json, size_t n)
+{
+    static bool adc_ready;
+    char id[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
+    pico_get_unique_board_id_string(id, sizeof id);
+    if (!adc_ready) {
+        adc_init();
+        adc_set_temp_sensor_enabled(true);
+        adc_ready = true;
+    }
+    adc_select_input(ADC_TEMPERATURE_CHANNEL_NUM);
+    uint32_t sum = 0;
+    for (int i = 0; i < 64; i++)
+        sum += adc_read();
+    /* the watchdog, measured: its count just after a feed, and how far it falls in 1 ms
+     * (expected 2,000,000 and 1000: a 2 s timeout in 1 us ticks) */
+    uint32_t irq = save_and_disable_interrupts();
+    watchdog_update();
+    uint32_t wd0 = watchdog_hw->ctrl & WATCHDOG_CTRL_TIME_BITS;
+    busy_wait_us_32(1000);
+    uint32_t wd1 = watchdog_hw->ctrl & WATCHDOG_CTRL_TIME_BITS;
+    watchdog_update();
+    restore_interrupts(irq);
+    snprintf(json, n, ",\"serial\":\"%s\",\"chip_rev\":%u,\"chip_reset\":\"0x%08lx\",\"vreg\":\"0x%08lx\","
+             "\"watchdog_reset\":%d,\"temp_raw\":%lu,\"sys_khz\":%lu,\"flash_kb\":%u,\"uptime_ms\":%lu,"
+             "\"wd_load\":%lu,\"wd_per_ms\":%ld,\"wd_tick\":\"0x%lx/%lu\",\"boot_reason\":%lu,\"boot_scratch4\":\"0x%08lx\"",
+             id, (unsigned)rp2350_chip_version(), (unsigned long)powman_hw->chip_reset, (unsigned long)powman_hw->vreg,
+             crashed_before, (unsigned long)(sum / 64), (unsigned long)(clock_get_hz(clk_sys) / 1000),
+             (unsigned)(PICO_FLASH_SIZE_BYTES / 1024), (unsigned long)(time_us_64() / 1000), (unsigned long)wd0,
+             (long)wd0 - (long)wd1, (unsigned long)ticks_hw->ticks[TICK_WATCHDOG].ctrl,
+             (unsigned long)ticks_hw->ticks[TICK_WATCHDOG].cycles, (unsigned long)boot_reason,
+             (unsigned long)boot_scratch4);
+}
+
+static void identify(int seconds) { identify_until = seconds ? time_us_64() + (uint64_t)seconds * 1000000u : 0; }
+
+/* ++t crash: hang with interrupts off, as a fault would; the watchdog bites
+ * 2 s later.  The bus first goes off, as the watchdog would leave it. */
+static void crash(void)
+{
+    console_line("{\"event\":\"crash\",\"by\":\"++t crash\"}");
+    gpib_stop();
+    (void)save_and_disable_interrupts();
+    for (;;)
+        tight_loop_contents();
 }
 
 /* ++t capture start|stop|status|dump */
@@ -229,6 +306,9 @@ static const prologix_io io = {
     .log = log_json,
     .status_extra = status_extra,
     .capture = capture_command,
+    .info = info,
+    .identify = identify,
+    .crash = crash,
 };
 
 /* the console's commands: one word a line */
@@ -250,8 +330,7 @@ static void console_command(char *cmd)
     } else if (!strcmp(cmd, "reboot")) {
         do_reboot(false);
     } else if (!strcmp(cmd, "power on")) {
-        gpib_start();
-        console_line("{\"event\":\"bus_power\",\"on\":true}");
+        bus_start();
     } else if (!strcmp(cmd, "power off")) {
         gpib_stop();
         console_line("{\"event\":\"bus_power\",\"on\":false}");
@@ -276,6 +355,19 @@ static void console_poll(void)
     }
 }
 
+/* On the bus as its controller, unless another controller is running it: then
+ * off again, the red LED lit, and the reason on the log. */
+static void bus_start(void)
+{
+    if (gpib_start(false)) {
+        console_line("{\"event\":\"bus_power\",\"on\":true}");
+        return;
+    }
+    error_at = time_us_64();
+    console_line("{\"event\":\"bus\",\"error\":\"another controller holds ATN, REN or IFC: staying off the bus "
+                 "(++t power 2 takes it regardless)\"}");
+}
+
 /* The transceivers draw up to 220 mA (110 mA each, datasheets): more than the
  * 100 mA a USB device may take before the host configures it.  So their 5 V
  * goes on when the host configures us, and off when it lets go or suspends. */
@@ -283,8 +375,11 @@ void tud_mount_cb(void)
 {
     if (!usb_ready_us)
         usb_ready_us = time_us_64();     /* from reset: how long the start took */
-    gpib_start();
-    console_line("{\"event\":\"bus_power\",\"on\":true}");
+    if (prologix_cfg.manual_start) {     /* ++t autostart 0: the host says when */
+        console_line("{\"event\":\"usb\",\"configured\":true,\"bus_power\":\"waits for ++t power 1\"}");
+        return;
+    }
+    bus_start();
 }
 
 void tud_umount_cb(void) { gpib_stop(); }
@@ -297,8 +392,8 @@ void tud_suspend_cb(bool remote_wakeup_en)
 
 void tud_resume_cb(void)
 {
-    if (tud_mounted())
-        gpib_start();
+    if (tud_mounted() && !prologix_cfg.manual_start)
+        bus_start();
 }
 
 /* the console port at 1200 baud: the Arduino habit for "go to BOOTSEL" */
@@ -313,6 +408,12 @@ static void leds(void)
 {
     uint64_t t = time_us_64();
     bool usb;
+    if (t < identify_until) {            /* ++t identify: yellow and red, turn about, 4 a second */
+        bool phase = (t / 125000) & 1;
+        gpio_put(PIN_LED_USB, phase);
+        gpio_put(PIN_LED_ERR, !phase);
+        return;
+    }
     if (!tud_mounted())
         usb = (t / 250000) & 1;          /* blink: waiting for the host */
     else
@@ -326,7 +427,10 @@ int main(void)
 {
     /* three watchdog resets in a row: something in this image crashes; go to
      * BOOTSEL so the next image can be loaded over USB */
-    if (watchdog_caused_reboot()) {
+    boot_reason = watchdog_hw->reason;
+    boot_scratch4 = watchdog_hw->scratch[4];
+    if (watchdog_enable_caused_reboot()) {
+        crashed_before = true;
         if (++watchdog_hw->scratch[0] >= CRASHES_TO_BOOTSEL) {
             watchdog_hw->scratch[0] = 0;
             rom_reset_usb_boot_extra(-1, 0, false);
@@ -335,6 +439,7 @@ int main(void)
         watchdog_hw->scratch[0] = 0;
     }
     stdio_init_all();                    /* printf to UART0, the debug connector */
+    capture_init();                      /* core 1, asleep: flash_safe_execute can then lock it out */
     gpio_init(PIN_LED_USB);
     gpio_set_dir(PIN_LED_USB, GPIO_OUT);
     gpio_init(PIN_LED_ERR);

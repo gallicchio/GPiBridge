@@ -8,6 +8,9 @@
  * EOI on its last byte if ++eoi is 1, and, with ++auto 1, is followed by a
  * read until EOI.
  *
+ * A data line longer than the line buffer is passed on as it arrives, so an
+ * upload of any length goes through, EOI on its last byte.
+ *
  * GPiBridge's own commands start "++t " (++t help lists them); ++ver says
  * "GPiBridge", or Prologix's string after "++t compat 1" for software that
  * insists.  "++t console 1" adds the second USB serial port (JSON console)
@@ -29,6 +32,7 @@ typedef struct {
     uint16_t read_tmo_ms;   /* 1-3000 */
     bool compat_ver;        /* ++ver answers as a Prologix */
     bool console_port;      /* a second USB serial port, "console" (++t console 1); off: one port, as a Prologix */
+    bool manual_start;      /* ++t autostart 0: off the bus when the host configures us, until "++t power 1" */
 } prologix_config;
 
 typedef struct {
@@ -39,6 +43,9 @@ typedef struct {
     void (*log)(const char *json);                   /* the console, for ++t trace */
     void (*status_extra)(char *json, size_t n);      /* more ++t status fields: ',"key":value...' */
     void (*capture)(const char *what);               /* ++t capture start|stop|status|dump */
+    void (*info)(char *json, size_t n);              /* ++t info: the chip's own facts, ',"key":value...' */
+    void (*identify)(int seconds);                   /* ++t identify: flash the LEDs (0 stops) */
+    void (*crash)(void);                             /* ++t crash: hang, to test the watchdog's failsafe */
 } prologix_io;
 
 extern prologix_config prologix_cfg;

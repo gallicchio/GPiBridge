@@ -13,7 +13,7 @@
 static char out[4096];
 static size_t outlen;
 static char logged[4096];
-static int saves, reboots;
+static int saves, reboots, identified = -1;
 
 static void w(const uint8_t *d, size_t n)
 {
@@ -31,7 +31,10 @@ static void lg(const char *j)
     strncat(logged, j, sizeof logged - strlen(logged) - 2);
     strcat(logged, "\n");
 }
-static const prologix_io io = {.write = w, .flush = fl, .save = sv, .reboot = rb, .log = lg};   /* no capture here */
+static void inf(char *json, size_t n) { snprintf(json, n, ",\"chip_rev\":2"); }
+static void idf(int seconds) { identified = seconds; }
+static const prologix_io io = {.write = w, .flush = fl, .save = sv, .reboot = rb, .log = lg,
+                               .info = inf, .identify = idf};   /* no capture here */
 
 static int failures, checks;
 
@@ -58,7 +61,7 @@ static void fresh(void)
 {
     sim_reset();
     prologix_init(&io, NULL);
-    gpib_start();
+    gpib_start(false);
     saves = reboots = 0;
 }
 
@@ -190,6 +193,148 @@ int main(void)
     }
     type("\n");
     CHECK(strlen(sim_last_message) == 255, "a 500-byte line reaches the instrument (its buffer keeps 255)");
+
+    /* ---- a line longer than the buffer streams to the instrument, EOI on its end ---- */
+    fresh();
+    type("++addr 10\n++eos 2\n");
+    static char big[40000];
+    unsigned long sum = 0;
+    for (size_t i = 0; i < 30000; i++) {
+        big[i] = (char)('A' + i % 26);
+        sum += (unsigned char)big[i];
+    }
+    sim_bytes_in = sim_sum_in = 0;
+    for (size_t i = 0; i < 30000; i += 64)       /* as USB brings it: 64 bytes at a time */
+        prologix_input((const uint8_t *)big + i, i + 64 <= 30000 ? 64 : 30000 - i);
+    type("\n");
+    CHECK(sim_bytes_in == 30001 && sim_sum_in == sum + '\n' && sim_last_eoi,
+          "a 30000-byte line: the instrument took %lu bytes (sum %lu, expected %lu), EOI %d", sim_bytes_in,
+          sim_sum_in, sum + '\n', sim_last_eoi);
+    CHECK(logged[0] == 0, "and nothing was logged");
+    type("*IDN?\n++read eoi\n");
+    CHECK(!strncmp(out, "HEWLETT-PACKARD", 15), "the bus is in order after it: \"%s\"", out);
+    /* without a terminator of ours (++eos 3), the EOI still rides the last byte */
+    type("++eos 3\n");
+    sim_bytes_in = 0;
+    for (size_t i = 0; i < 8192 * 2; i += 64)    /* exactly two buffers: nothing is left over at the end */
+        prologix_input((const uint8_t *)big + i, 64);
+    type("\n");
+    CHECK(sim_bytes_in == 8192 * 2 && sim_last_eoi, "two buffers exactly, no terminator: %lu bytes, EOI %d",
+          sim_bytes_in, sim_last_eoi);
+    type("++eos 2\n");
+    /* nobody listening: said once, the rest of the line dropped, and the next line is a new line */
+    type("++addr 5\n");
+    for (size_t i = 0; i < 30000; i += 64)
+        prologix_input((const uint8_t *)big + i, 64);
+    type("\n");
+    type("++addr 10\n*IDN?\n++read eoi\n");
+    CHECK(!strncmp(out, "HEWLETT-PACKARD", 15), "after a long line to nobody: \"%s\"", out);
+
+    /* ---- a binary block with every byte the adapter would take for itself ---- */
+    {
+        uint8_t points[64], line_[200];
+        size_t k = 0;
+        const char *head = "DATA:DAC VOLATILE, #264";
+        for (int i = 0; i < 64; i++)             /* LF, CR, ESC and '+' among them */
+            points[i] = (uint8_t)("\n\r\x1b+\0\xff"[i % 6]);
+        memcpy(line_, head, strlen(head));
+        k = strlen(head);
+        for (int i = 0; i < 64; i++) {
+            if (points[i] == '\n' || points[i] == '\r' || points[i] == 27 || points[i] == '+')
+                line_[k++] = 27;
+            line_[k++] = points[i];
+        }
+        line_[k++] = '\n';
+        outlen = 0;
+        logged[0] = 0;
+        sim_bytes_in = 0;
+        prologix_input(line_, k);
+        CHECK(sim_bytes_in == strlen(head) + 64 + 1, "the block: %lu bytes at the instrument", sim_bytes_in);
+        type("DATA:ATTRibute:POINts? VOLATILE\n++read eoi\n");
+        CHECK(!strcmp(out, "+32\n"), "32 points stored: \"%s\"", out);
+        type("SYSTem:ERRor?\n++read eoi\n");
+        CHECK(!strncmp(out, "+0,", 3), "no error from the block: \"%s\"", out);
+    }
+
+    /* ---- the 33120A's own commands, as lab-instrument-control's driver sends them ---- */
+    type("APPLy:SINusoid 1234.5,0.8,0.1\n");
+    type("APPLy?\n++read eoi\n");
+    CHECK(!strcmp(out, "\"SIN 1.234500000000E+03,+8.000000E-01,+1.000000E-01\"\n"), "APPLy?: %s", out);
+    type("APPLy:SINusoid 20e6,1,0\nSYSTem:ERRor?\n++read eoi\n");
+    CHECK(!strncmp(out, "-222", 4), "20 MHz is refused: %s", out);
+
+    /* ---- SRQ: the line, then a serial poll lets go of it ---- */
+    sim_srq = true;
+    sim_status = 0x50;
+    type("++srq\n");
+    CHECK(!strcmp(out, "1\r\n"), "++srq with SRQ asserted: \"%s\"", out);
+    type("++spoll\n");
+    CHECK(!strcmp(out, "80\r\n"), "the poll's status byte: \"%s\"", out);
+    type("++srq\n");
+    CHECK(!strcmp(out, "0\r\n"), "++srq after the poll: \"%s\"", out);
+
+    /* ---- another controller on the bus: stand back, say so, take it only when told to ---- */
+    type("++t power 0\n");
+    sim_other_controller = true;
+    type("++t power 1\n");
+    CHECK(strstr(logged, "another controller"), "++t power 1 against another controller logs it: %s", logged);
+    type("++t status\n");
+    CHECK(strstr(out, "\"bus\":\"busy\"") && strstr(out, "\"bus_power\":0"), "++t status then: %s", out);
+    type("*IDN?\n");
+    CHECK(strstr(logged, "another controller has the bus"), "a data line then says why it went nowhere: %s", logged);
+    type("++t power 2\n++t status\n");
+    CHECK(strstr(out, "\"bus\":\"controller\""), "++t power 2 takes the bus regardless: %s", out);
+    sim_other_controller = false;
+    type("++t power 0\n++t power 1\n++t status\n");
+    CHECK(strstr(out, "\"bus\":\"controller\""), "and ++t power 1 on a free bus: %s", out);
+
+    /* ---- the bring-up commands ---- */
+    type("++t status\n");
+    CHECK(strstr(out, "\"bus\":\"controller\"") && strstr(out, "\"autostart\":1"), "++t status: %s", out);
+    type("++t info\n");
+    CHECK(strstr(out, "\"board\":\"GPiBridge rev A\"") && strstr(out, "\"chip_rev\":2"), "++t info: %s", out);
+    type("++t crash\n");
+    CHECK(strstr(out, "no watchdog"), "++t crash without a watchdog (a PC) says so: %s", out);
+    type("++t identify 7\n");
+    CHECK(identified == 7, "++t identify 7 (%d)", identified);
+    type("++t identify\n");
+    CHECK(identified == 30, "++t identify, 30 s by default (%d)", identified);
+    saves = 0;
+    type("++savecfg 1\n++t autostart 0\n++t autostart\n");
+    CHECK(!strcmp(out, "0\r\n") && prologix_cfg.manual_start && saves >= 1, "++t autostart 0: \"%s\"", out);
+    type("++t autostart 1\n");
+    CHECK(!prologix_cfg.manual_start, "++t autostart 1");
+    type("++t lines\n");
+    CHECK(strstr(out, "\"bus\":\"controller\"") && strstr(out, "ATN") && strstr(out, "REN"),
+          "++t lines, idle: ATN and REN asserted: %s", out);
+    type("++t raw\n");
+    CHECK(strstr(out, "\"raw\":\"off\",\"power\":1"), "++t raw, not in it: %s", out);
+    type("++t raw set 0x0001\n");
+    CHECK(strstr(out, "error"), "++t raw set before a role: %s", out);
+    type("++t raw dev_listen\n");
+    CHECK(strstr(out, "\"raw\":\"dev_listen\"") && strstr(out, "\"lines\":\"0x0000\""), "++t raw dev_listen: %s", out);
+    type("++t raw set 0x0001\n");
+    CHECK(strstr(out, "not driven in this role: DIO1"), "DIO1 is not a listening device's to drive: %s", out);
+    type("++t raw ctrl_talk\n++t raw set 0x0201\n");
+    CHECK(strstr(out, "\"set\":\"0x0201\"") && strstr(out, "DIO1 DAV"), "DIO1 and DAV asserted: %s", out);
+    type("++t status\n");
+    CHECK(strstr(out, "\"bus\":\"raw\""), "++t status in raw mode: %s", out);
+    type("*IDN?\n");
+    CHECK(strstr(logged, "raw mode"), "a data line in raw mode is refused, and says why: %s", logged);
+    type("++t raw off\n");
+    CHECK(strstr(out, "\"raw\":\"off\",\"power\":0"), "++t raw off: %s", out);
+    type("++t lines\n");
+    CHECK(strstr(out, "\"bus\":\"off\""), "++t lines with the bus off: %s", out);
+    type("++spoll\n");
+    CHECK(strstr(logged, "bus power off"), "a serial poll with the bus off says so: %s", logged);
+    type("++t power 1\n*IDN?\n++read eoi\n");
+    CHECK(!strncmp(out, "HEWLETT-PACKARD", 15), "++t power 1 brings the controller back: \"%s\"", out);
+    sim_present = false;                 /* a selftest wants the GPIB side empty */
+    type("++t selftest\n");
+    sim_present = true;
+    CHECK(strstr(out, "\"selftest\":\"done\"") && strstr(out, "\"ok\":"), "++t selftest answers: %s", out);
+    type("*IDN?\n++read eoi\n");
+    CHECK(!strncmp(out, "HEWLETT-PACKARD", 15), "and the controller is back after it: \"%s\"", out);
 
     printf("%d checks, %d failures; %lu bytes out, %lu in, %lu timeouts, %lu no-listener\n", checks, failures,
            (unsigned long)gpib_count.bytes_out, (unsigned long)gpib_count.bytes_in,

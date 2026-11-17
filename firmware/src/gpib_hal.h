@@ -33,3 +33,31 @@ void hal_data_release(void);
 uint64_t hal_us(void);                  /* microseconds since start */
 void hal_delay_us(uint32_t us);
 void hal_idle(void);                    /* while waiting on the bus: let USB run */
+
+/* ---- bring-up: the board as sixteen wires ("++t raw", bringup.c) -------------
+ * A role is one row of the transceivers' function tables: which lines this
+ * board drives and which it reads.  Lines travel as a 16-bit mask, 1 =
+ * asserted: DIO1-8 in bits 0-7, then RAW_BIT(L_xxx).
+ *
+ *   role          drives                          reads
+ *   dev_listen    NRFD NDAC SRQ                   DIO DAV EOI ATN REN IFC
+ *   dev_talk      DIO DAV SRQ                     ATN REN IFC NRFD NDAC
+ *   ctrl_listen   NRFD NDAC ATN REN IFC           DIO DAV SRQ
+ *   ctrl_talk     DIO DAV EOI ATN REN IFC         NRFD NDAC SRQ
+ *
+ * (EOI's direction follows ATN in dev_talk and ctrl_listen, so there it is
+ * neither driven nor trusted.)  GPiBridge Lite's pins are the bus: every line
+ * is driven (open-drain) and read in every role.  Two controllers on one bus
+ * fight over ATN, REN and IFC: whoever drives this picks the roles. */
+typedef enum { RAW_DEV_LISTEN, RAW_DEV_TALK, RAW_CTRL_LISTEN, RAW_CTRL_TALK, RAW_ROLES } raw_role;
+#define RAW_BIT(line) (1u << (8 + (line)))
+#define RAW_DATA 0x00ffu
+void hal_raw_role(raw_role role);       /* let go of everything, turn the transceivers, then drive our lines released */
+void hal_raw_end(void);                 /* let go of everything; the transceivers a listening device */
+uint16_t hal_raw_drives(void);          /* the lines this board drives in its role */
+uint16_t hal_raw_reads(void);           /* the lines whose pins show the bus in its role */
+void hal_raw_set(uint16_t asserted);    /* assert these of the lines we drive, release the rest */
+/* Every line as its pin reads it now (low = 1).  pull: the pads' pull on the
+ * pins we do not drive while reading, +1 up, -1 down, 0 as they are.  A pin a
+ * transceiver drives ignores the pull; an open joint follows it. */
+uint16_t hal_raw_get(int pull);

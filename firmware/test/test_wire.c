@@ -1,8 +1,7 @@
 /* test_wire.c: the board's own pin layer (src/hal_rp2350.c) and bus engine
- * (src/gpib.c), against a model of the wires: the SN75160B and SN75161B by
- * their datasheets' function tables, the board's pull resistors
- * (board_pins.h), and the simulated instrument (sim_bus.c) on the far side
- * of the plug.  `make` here runs it twice: `./test_wire` for GPiBridge,
+ * (src/gpib.c), against a model of the wires (wire_model.c: the SN75160B and
+ * SN75161B by their datasheets' function tables, the board's pull resistors)
+ * and the simulated instrument (sim_bus.c) on the far side of the plug.  `make` here runs it twice: `./test_wire` for GPiBridge,
  * `./test_wire lite` for GPiBridge Lite, whose pins are the bus (wired-OR,
  * through 100 R) and whose R21 pulls DC down instead of up.
  *
@@ -22,116 +21,28 @@
  * and, on both, end to end through the active-low wires and the
  * nibble-swapped data pins, that every byte value reaches the instrument and
  * comes back.
+ *
+ * Then, with another controller holding REN, ATN or IFC: the board looks,
+ * asserts nothing, and stays off the bus.
+ *
+ * Then the bring-up commands (src/bringup.c), under the same rules: every
+ * line of every "++t raw" role reaches the bus and comes back from it, and
+ * "++t selftest" passes a good board and fails each planted fault (no 5 V, a
+ * 5 V switch stuck on, an open joint, two lines bridged).
  */
 #include "../src/board_pins.h"
+#include "../src/bringup.h"
 #include "../src/capture.h"
 #include "../src/gpib.h"
 #include "sim_bus.h"
+#include "wire_model.h"
 #include "hardware/gpio.h"
 #include "pico/time.h"
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
-/* ---- the RP2354A's side of each wire ------------------------------------- */
-static bool oe[32], ov[32], ie[32];     /* output enabled, output value, input enabled */
-static bool outlow[32];                  /* the pad's output forced low (OUTOVER) */
-static int pull[32];                     /* the pad's own pull: +1 up, -1 down, 0 none */
 static uint64_t now;
-static bool lite_board;                  /* ./test_wire lite */
-
-static const unsigned line_pin[L_COUNT] = {
-    [L_EOI] = PIN_EOI, [L_DAV] = PIN_DAV, [L_NRFD] = PIN_NRFD, [L_NDAC] = PIN_NDAC,
-    [L_IFC] = PIN_IFC, [L_REN] = PIN_REN, [L_ATN] = PIN_ATN, [L_SRQ] = PIN_SRQ,
-};
-static const unsigned dio_pin[8] = {PIN_DIO1, PIN_DIO2, PIN_DIO3, PIN_DIO4,
-                                    PIN_DIO5, PIN_DIO6, PIN_DIO7, PIN_DIO8};
-
-/* the wire's level as the RP2354A and the resistors set it, the transceiver aside */
-static bool mcu_level(unsigned pin)
-{
-    if (oe[pin])
-        return ov[pin] && !outlow[pin];
-    if (lite_board) {
-        if (pin == PIN_DC)
-            return false;                /* the Lite's R21: 1 k to ground, the board ID */
-    } else {
-        if (BOARD_PULL_UP_MASK & (1u << pin))
-            return true;
-        if (BOARD_PULL_DOWN_MASK & (1u << pin))
-            return false;
-    }
-    return pull[pin] > 0;
-}
-
-static bool powered(void) { return mcu_level(PIN_BUS_PWR_EN); }
-
-/* ---- the far side: the instrument's outputs on the bus ------------------- */
-static bool dev[L_COUNT];
-static uint8_t dev_data;
-
-/* Does the transceiver drive this terminal pin (its channel receives)?
- * SN75160B: TE low receives.  SN75161B function table: DC high receives ATN,
- * REN and IFC and transmits SRQ; TE high transmits DAV and receives NRFD and
- * NDAC; EOI by DC, TE and ATN, whose level is the terminal's while DC is low
- * (ATN transmits) and the bus's while DC is high. */
-static bool xcvr_drives(unsigned pin)
-{
-    if (lite_board || !powered())
-        return false;
-    bool dc = mcu_level(PIN_DC), te = mcu_level(PIN_TE_CTRL);
-    for (int i = 0; i < 8; i++)
-        if (pin == dio_pin[i])
-            return !mcu_level(PIN_TE_DATA);
-    if (pin == PIN_ATN || pin == PIN_REN || pin == PIN_IFC)
-        return dc;
-    if (pin == PIN_SRQ)
-        return !dc;
-    if (pin == PIN_DAV)
-        return !te;
-    if (pin == PIN_NRFD || pin == PIN_NDAC)
-        return te;
-    if (pin == PIN_EOI) {
-        if (dc != te)
-            return dc;                   /* DC H, TE L: receives; DC L, TE H: transmits */
-        bool atn_high = dc ? !dev[L_ATN] : mcu_level(PIN_ATN);
-        return dc ? !atn_high : atn_high;
-    }
-    return false;
-}
-
-/* what our side asserts on the bus: a transmitting channel whose terminal pin
- * is low; on the Lite, a pin whose output is on (and low) */
-static bool ours(unsigned pin)
-{
-    if (lite_board)
-        return oe[pin] && !mcu_level(pin);
-    return powered() && !xcvr_drives(pin) && !mcu_level(pin);
-}
-
-static bool asserted(unsigned pin)
-{
-    if (ours(pin))
-        return true;
-    for (int l = 0; l < L_COUNT; l++)
-        if (line_pin[l] == pin)
-            return dev[l];
-    for (int i = 0; i < 8; i++)
-        if (dio_pin[i] == pin)
-            return dev_data >> i & 1;
-    return false;
-}
-
-/* the level the RP2354A reads */
-static bool wire(unsigned pin)
-{
-    if (lite_board && (BUS_PIN_MASK & (1u << pin)))
-        return !asserted(pin);           /* the pin is the bus */
-    if (oe[pin])
-        return ov[pin];
-    if (xcvr_drives(pin))
-        return !asserted(pin);
-    return mcu_level(pin);
-}
 
 /* ---- a record of the run, for sigrok's IEEE-488 decoder (sigrok_check.sh) ----
  * Two views of the same moments: the bus itself, as a logic analyser on the
@@ -206,8 +117,12 @@ static void record_save(const char *name)
 }
 
 /* ---- after every pin change: the instrument takes a step, then the checks */
-static int changes, contention, backpower, drive_high, override, off_bus;
+static int changes;
 static const char *phase = "";
+static bool ext[L_COUNT];                /* lines the test itself asserts from beyond the plug */
+static uint8_t ext_data;
+static bool checking = true;             /* off while a fault is planted: the rules are a good board's */
+static bool watching, we_asserted;       /* while watching: did this board assert any line at all? */
 
 static void settle(void)
 {
@@ -217,116 +132,27 @@ static void settle(void)
         our[l] = ours(line_pin[l]);
     for (int i = 0; i < 8; i++)
         our_data |= (uint8_t)(ours(dio_pin[i]) << i);
-    sim_wire_step(our, our_data, powered(), dev, &dev_data);
+    sim_wire_step(our, our_data, powered(), far, &far_data);
+    for (int l = 0; l < L_COUNT; l++)
+        far[l] |= ext[l];
+    far_data |= ext_data;
+    for (unsigned bit = 0; bit < 16 && watching; bit++)
+        if (ours(bit < 8 ? dio_pin[bit] : line_pin[bit - 8]))
+            we_asserted = true;
     changes++;
-    for (unsigned p = 0; p < 32; p++) {
-        bool bus = BUS_PIN_MASK & (1u << p);
-        if (lite_board) {
-            if (bus && oe[p] && mcu_level(p) && drive_high++ < 10)
-                printf("DRIVE-HIGH: GPIO%u drives its bus line high during %s\n", p, phase);
-            if (bus && oe[p] && !outlow[p] && override++ < 10)
-                printf("OVERRIDE: GPIO%u's output on without the pad forced low during %s\n", p, phase);
-            if (bus && oe[p] && !powered() && off_bus++ < 10)
-                printf("OFF-BUS: GPIO%u asserted while the firmware is off the bus during %s\n", p, phase);
-            continue;
-        }
-        bool chip_input = p == PIN_TE_DATA || p == PIN_TE_CTRL || p == PIN_PE;
-        if (bus && oe[p] && xcvr_drives(p) && contention++ < 10)
-            printf("CONTENTION on GPIO%u during %s\n", p, phase);
-        if (!powered() && (bus || chip_input) && oe[p] && ov[p] && backpower++ < 10)
-            printf("BACK-POWER: GPIO%u high into the unpowered transceivers during %s\n", p, phase);
-    }
+    if (checking)
+        wire_check(phase);
     record();
 }
 
-/* ---- the Pico SDK calls hal_rp2350.c makes (stubs/) ---------------------- */
-void gpio_init(unsigned pin)
-{
-    oe[pin] = ov[pin] = false;
-    outlow[pin] = false;                 /* the SDK rewrites the pin's whole control register */
-    ie[pin] = true;
-    settle();
-}
-void gpio_set_dir(unsigned pin, bool out)
-{
-    oe[pin] = out;
-    settle();
-}
-void gpio_put(unsigned pin, bool value)
-{
-    ov[pin] = value;
-    settle();
-}
-bool gpio_get(unsigned pin)
+void wire_changed(void) { settle(); }
+void wire_read(void)
 {
     now++;
     settle();
-    return ie[pin] && wire(pin);
 }
-uint32_t gpio_get_all(void)
-{
-    now++;
-    settle();
-    uint32_t v = 0;
-    for (unsigned p = 0; p < 32; p++)
-        if (ie[p] && wire(p))
-            v |= 1u << p;
-    return v;
-}
-void gpio_put_masked(uint32_t mask, uint32_t value)
-{
-    for (unsigned p = 0; p < 32; p++)
-        if (mask >> p & 1)
-            ov[p] = value >> p & 1;
-    settle();
-}
-void gpio_set_dir_out_masked(uint32_t mask)
-{
-    for (unsigned p = 0; p < 32; p++)
-        if (mask >> p & 1)
-            oe[p] = true;
-    settle();
-}
-void gpio_set_dir_in_masked(uint32_t mask)
-{
-    for (unsigned p = 0; p < 32; p++)
-        if (mask >> p & 1)
-            oe[p] = false;
-    settle();
-}
-void gpio_pull_up(unsigned pin)
-{
-    pull[pin] = +1;
-    settle();
-}
-void gpio_pull_down(unsigned pin)
-{
-    pull[pin] = -1;
-    settle();
-}
-void gpio_set_input_enabled(unsigned pin, bool enabled)
-{
-    ie[pin] = enabled;
-    settle();
-}
-void gpio_disable_pulls(unsigned pin)
-{
-    pull[pin] = 0;
-    settle();
-}
-void gpio_set_outover(unsigned pin, unsigned value)
-{
-    outlow[pin] = value == GPIO_OVERRIDE_LOW;
-    settle();
-}
-void gpio_set_drive_strength(unsigned pin, enum gpio_drive_strength drive) {}
-void gpio_set_dir_masked(uint32_t mask, uint32_t value)
-{
-    for (unsigned p = 0; p < 32; p++)
-        if (mask >> p & 1)
-            oe[p] = value >> p & 1;
-    settle();
-}
+
+/* ---- the Pico SDK's clock (stubs/): a microsecond a call ------------------ */
 uint64_t time_us_64(void) { return ++now; }
 void busy_wait_us_32(uint32_t us)
 {
@@ -347,6 +173,18 @@ static int failures;
             printf("\n");                                    \
         }                                                    \
     } while (0)
+
+/* what a bring-up command said, a line each */
+static char said[4096];
+static void say(const char *fmt, ...)
+{
+    size_t n = strlen(said);
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(said + n, sizeof said - n - 2, fmt, ap);
+    va_end(ap);
+    strcat(said, "\n");
+}
 
 static void send(const uint8_t *msg, size_t n)
 {
@@ -383,7 +221,7 @@ int main(int argc, char **argv)
     CHECK(!powered(), "transceivers powered at boot");
 
     phase = "gpib_start";
-    gpib_start();
+    gpib_start(false);
     CHECK(hal_lite() == lite_board, "the board read as %s", hal_lite() ? "the Lite" : "GPiBridge");
     CHECK(powered() && gpib_powered(), "transceivers off after gpib_start");
     CHECK(!mcu_level(PIN_DC), "DC high: not the controller");
@@ -437,16 +275,159 @@ int main(int argc, char **argv)
                   p, oe[p], pull[p], ie[p]);
 
     phase = "gpib_start again";
-    gpib_start();
+    gpib_start(false);
     n = query("*IDN?\n", buf, sizeof buf);
     CHECK(n == strlen(idn) && !memcmp(buf, idn, n), "answered %zu bytes", n);
     gpib_stop();
 
+    /* ---- with the bus off, nothing moves: every transfer says so --------- */
+    phase = "bus off";
+    s = gpib_serial_poll(SIM_ADDR, -1, &status);
+    CHECK(s == GPIB_OFF, "serial poll with the bus off: %s", gpib_status_name(s));
+    s = gpib_send_to(SIM_ADDR, -1, (const uint8_t *)"X\n", 2, true);
+    CHECK(s == GPIB_OFF, "send with the bus off: %s", gpib_status_name(s));
+    gpib_ifc();
+    gpib_ren(true);
+    gpib_idle();
+    CHECK(!powered(), "something switched the bus on");
+
+    /* ---- somebody else is the controller: we look, touch nothing, and stand back ---- */
+    static const gpib_line theirs[] = {L_REN, L_ATN, L_IFC};
+    for (size_t i = 0; i < sizeof theirs / sizeof theirs[0]; i++) {
+        phase = "another controller";
+        ext[theirs[i]] = true;
+        watching = true;
+        we_asserted = false;
+        bool started = gpib_start(false);
+        watching = false;
+        CHECK(!started && gpib_busy() && !gpib_powered() && !powered(), "started against another controller (line %d)",
+              (int)theirs[i]);
+        CHECK(!we_asserted, "asserted a line while looking for another controller (line %d)", (int)theirs[i]);
+        s = gpib_send_to(SIM_ADDR, -1, (const uint8_t *)"X\n", 2, true);
+        CHECK(s == GPIB_OFF && strstr(gpib_status_name(s), "another controller"), "a send then: %s",
+              gpib_status_name(s));
+        ext[theirs[i]] = false;
+    }
+    CHECK(gpib_count.refused == 3, "three starts refused (%lu)", (unsigned long)gpib_count.refused);
+    phase = "the bus free again";
+    CHECK(gpib_start(false) && !gpib_busy(), "did not start on a free bus");
+    n = query("*IDN?\n", buf, sizeof buf);
+    CHECK(n == strlen(idn) && !memcmp(buf, idn, n), "on a free bus, answered %zu bytes", n);
+    gpib_stop();
+    ext[L_REN] = true;                   /* a line stuck low is not a controller: forced, we start */
+    CHECK(gpib_start(true) && gpib_powered(), "a forced start");
+    ext[L_REN] = false;
+    gpib_stop();
+
+    /* ---- "++t raw": each role, each line, out to the bus and back -------- */
+    sim_present = false;                 /* nothing beyond the plug but this test */
+    static const char *const role_name[RAW_ROLES] = {"dev_listen", "dev_talk", "ctrl_listen", "ctrl_talk"};
+    for (int r = 0; r < RAW_ROLES; r++) {
+        phase = role_name[r];
+        gpib_raw((raw_role)r);
+        uint16_t drives = hal_raw_drives(), reads = hal_raw_reads(), bus = 0;
+        CHECK(powered() && gpib_is_raw(), "raw mode did not power the bus");
+        CHECK(lite_board || !(drives & reads), "a line both driven and read: 0x%04x", drives & reads);
+        for (unsigned bit = 0; bit < 16; bit++)
+            bus |= (uint16_t)(asserted(bit < 8 ? dio_pin[bit] : line_pin[bit - 8]) << bit);
+        CHECK(!bus && !(hal_raw_get(0) & reads), "entering the role asserted 0x%04x", bus);
+        for (unsigned bit = 0; bit < 16; bit++) {
+            if (drives >> bit & 1) {     /* out: exactly this line on the bus */
+                hal_raw_set((uint16_t)(1u << bit));
+                bus = 0;
+                for (unsigned k = 0; k < 16; k++)
+                    bus |= (uint16_t)(ours(k < 8 ? dio_pin[k] : line_pin[k - 8]) << k);
+                CHECK(bus == 1u << bit, "set 0x%04x put 0x%04x on the bus", 1u << bit, bus);
+                hal_raw_set(0);
+            }
+            if (reads >> bit & 1) {      /* back: exactly this line read, whatever the pads' pulls */
+                if (bit < 8)
+                    ext_data = (uint8_t)(1u << bit);
+                else
+                    ext[bit - 8] = true;
+                for (int pl = -1; pl <= 1; pl++) {
+                    uint16_t got = hal_raw_get(pl) & reads;
+                    CHECK(got == 1u << bit, "0x%04x asserted beyond the plug read as 0x%04x (pull %d)", 1u << bit,
+                          got, pl);
+                }
+                ext_data = 0;
+                memset(ext, 0, sizeof ext);
+            }
+        }
+    }
+    phase = "raw off";
+    gpib_stop();
+    CHECK(!powered() && !gpib_is_raw(), "raw mode left the bus on");
+
+    /* ---- "++t selftest": a good board passes, each planted fault fails ---- */
+    static const struct {
+        const char *what;
+        bool lite, full;                 /* which board it can happen to */
+        uint32_t open;
+        bool no_5v, stuck_5v;
+        int short_a, short_b;
+    } fault[] = {
+        {"a good board", true, true, 0, false, false, -1, -1},
+        {"the 5 V switch never closes", false, true, 0, true, false, -1, -1},
+        {"the 5 V switch never opens", false, true, 0, false, true, -1, -1},
+        {"DAV's joint open", false, true, 1u << PIN_DAV, false, false, -1, -1},
+        {"DIO8's joint open", false, true, 1u << PIN_DIO8, false, false, -1, -1},
+        {"SRQ's joint open", false, true, 1u << PIN_SRQ, false, false, -1, -1},
+        {"NRFD's joint open", false, true, 1u << PIN_NRFD, false, false, -1, -1},
+        {"DAV bridged to NRFD", true, false, 0, false, false, PIN_DAV, PIN_NRFD},
+    };
+    /* (An open joint on the Lite is out of a lone board's sight: the pad still
+     * follows its own pull and reads its own low.  The two-board walk finds it:
+     * bringup/, against sim_board.) */
+    bus_terminated = false;              /* nothing on the GPIB side: the Lite's pins float */
+    for (size_t i = 0; i < sizeof fault / sizeof fault[0]; i++) {
+        if (!(lite_board ? fault[i].lite : fault[i].full))
+            continue;
+        phase = fault[i].what;
+        fault_open = fault[i].open;
+        fault_no_5v = fault[i].no_5v;
+        fault_5v_stuck = fault[i].stuck_5v;
+        fault_short_a = fault[i].short_a;
+        fault_short_b = fault[i].short_b;
+        checking = i == 0;               /* the rules are for a good board */
+        said[0] = 0;
+        char *argv_[] = {"selftest"};
+        bringup_command(1, argv_, say, "test");
+        bool passed = strstr(said, "\"ok\":true") != NULL;
+        CHECK(passed == (i == 0), "selftest said %s:\n%s", passed ? "ok" : "not ok", said);
+        CHECK(!gpib_powered(), "selftest left the bus on");
+    }
+    fault_open = 0;
+    fault_no_5v = fault_5v_stuck = false;
+    fault_short_a = fault_short_b = -1;
+    checking = true;
+    bus_terminated = true;
+    sim_present = true;
+
+    /* ---- and the engine takes the bus back, as before --------------------- */
+    phase = "after raw";
+    gpib_raw(RAW_CTRL_TALK);
+    hal_raw_set(RAW_DATA);               /* leave it mid-test, lines asserted */
+    gpib_start(false);
+    n = query("*IDN?\n", buf, sizeof buf);
+    CHECK(n == strlen(idn) && !memcmp(buf, idn, n), "after raw mode, answered %zu bytes", n);
+    said[0] = 0;
+    char *argv_[] = {"selftest"};
+    sim_present = false;
+    bus_terminated = false;
+    bringup_command(1, argv_, say, "test");
+    sim_present = true;
+    bus_terminated = true;
+    CHECK(strstr(said, "\"ok\":true") && gpib_powered() && !gpib_is_raw(), "selftest from a running bus: %s", said);
+    n = query("*IDN?\n", buf, sizeof buf);
+    CHECK(n == strlen(idn) && !memcmp(buf, idn, n), "after a selftest, answered %zu bytes", n);
+    gpib_stop();
+
     if (lite_board)
         printf("%d pin changes checked: %d driven high, %d without the override, %d off the bus; %d failures\n",
-               changes, drive_high, override, off_bus, failures);
+               changes, wire_found.drive_high, wire_found.override, wire_found.off_bus, failures);
     else
-        printf("%d pin changes checked: %d contention, %d back-power; %d failures\n", changes, contention, backpower,
-               failures);
-    return failures || contention || backpower || drive_high || override || off_bus;
+        printf("%d pin changes checked: %d contention, %d back-power; %d failures\n", changes, wire_found.contention,
+               wire_found.backpower, failures);
+    return failures || wire_breach_count();
 }

@@ -1,0 +1,26 @@
+{
+ "boards": {
+  "9F9D542A93F67D76": {
+   "first_seen": "2026-11-16 08:42",
+   "kind": "GPiBridge rev A",
+   "label": "A1",
+   "stages": {
+    "bare": {
+     "at": "2026-11-16 09:14:17",
+     "file": "results/2026-11-16/091417_bare_A1.json",
+     "ok": true
+    },
+    "failsafe": {
+     "at": "2026-11-16 09:15:10",
+     "file": "results/2026-11-16/091510_failsafe_A1.json",
+     "ok": true
+    },
+    "flash": {
+     "at": "2026-11-16 09:14:08",
+     "file": "results/2026-11-16/091408_flash_A1.json",
+     "ok": true
+    }
+   }
+  }
+ }
+}

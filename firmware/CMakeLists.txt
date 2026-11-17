@@ -24,6 +24,7 @@ add_executable(gpibridge
     src/gpib.c
     src/hal_rp2350.c
     src/prologix.c
+    src/bringup.c
     src/usb_descriptors.c
     src/capture.c
     src/capture_rp2350.c
@@ -47,7 +48,9 @@ target_link_libraries(gpibridge
     pico_usb_reset_interface
     pico_flash
     pico_multicore
+    hardware_adc
     hardware_flash
+    hardware_powman
     hardware_ticks
     hardware_watchdog
     tinyusb_device

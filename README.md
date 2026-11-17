@@ -61,17 +61,22 @@ at start-up (R21 on DC: 10 k up on GPiBridge, 1 k down on the Lite).
 
 `DESIGN_NOTES.md` §7 has the Lite's design and its limits.
 
-**Status: rev A of both boards has been ordered from JLCPCB, assembled, but not yet
-received** (2026-10-06: 5 boards of each, 2 of them assembled). Both pass every check
+**Status: rev A of both boards has arrived from JLCPCB (5 boards of each, 2 of them
+assembled, ordered 2026-10-06) and is being brought up. The first GPiBridge (A1) passed
+stage 1 on 2026-11-16: firmware, USB, rails, crystal, the 5 V switch, every receive path
+of both transceivers, settings, the failsafe. Its plug is not yet soldered.** [`bringup/STATUS.md`](bringup/STATUS.md) says where the bring-up stands,
+[`BRINGUP.md`](BRINGUP.md) is its plan, and [`bringup/REVB.md`](bringup/REVB.md) what
+rev B should change. Both boards pass every check
 (schematic ERC 0, DRC 0 at every severity with schematic parity); their JLCPCB releases
 are in `mfg/release/` and `mfg/release-lite/`, and the housing (one base, a lid for each)
 in `enclosure/out/`. The firmware builds and passes its host tests against a simulated
 instrument, for both boards' pin layers, and sigrok's own IEEE-488 decoder reads their
-simulated bus traffic correctly. Nothing has run on real hardware yet. After the order
+simulated bus traffic correctly. The bring-up's own steps have been run against the
+firmware on a simulated board (`firmware/test/sim_board`, `pytest bringup/`), and
+lab-instrument-control's driver for the HP 33120A runs through it. After the order
 JLCPCB ran out of L1 (the Abracon AOTA inductor) and rev A is built with a TDK
 VLS201612HBX-3R3M-1 instead, chosen on 2026-10-18 in their Replace Parts dialog; the design
-keeps the AOTA (`DESIGN_NOTES.md` risk 8). `BRINGUP.md` is
-the plan for the first boards, and the shopping list.
+keeps the AOTA (`DESIGN_NOTES.md` risk 8).
 
 ## Using it
 
