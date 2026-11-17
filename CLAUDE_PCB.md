@@ -11,10 +11,10 @@ to ask for, or a fault that a fab, a reviewer or a working board found.
 | **Icepi Zero JLC rebuild** (`IcepiZeroADCDAC/jlcbuild`) | Built by JLCPCB after a wrong switch stopped the line | `IcepiZeroADCDAC/jlcbuild/README.md` |
 | **ECP5-2ADC-2DAC** | Designed, five LLM reviews reconciled, not yet ordered | `ECP5-2ADC-2DAC/CLAUDE_CODE_CHAT.md`, `DESIGN_REVIEW_RESPONSE.md` |
 | **IcepiZeroADCDAC** (maximal/minimal) | Abandoned: the BGA would not escape with an autorouter | `IcepiZeroADCDAC/README.md` |
-| **GPiBridge** and **GPiBridge Lite** (USB-C to GPIB; designed here, then moved to its own public repository, github.com/gallicchio/GPiBridge, cloned beside this one at `../other/GPiBridge`) | Both ordered from JLCPCB on 2026-10-06, 2 assembled of each; not yet received | its `CLAUDE_CODE_CHAT.md`, `PLAN.md`, `DESIGN_NOTES.md`; its `CLAUDE_PCB.md` is a public snapshot of this file |
+| **GPiBridge** and **GPiBridge Lite** (USB-C to GPIB; designed here, then moved to its own public repository, github.com/gallicchio/GPiBridge, cloned beside this one at `../pcbs/GPiBridge`) | Both ordered from JLCPCB on 2026-10-06, 2 assembled of each; received in November; bring-up prepared 2026-11-15 (every step run against the firmware on a simulated board, seven firmware faults fixed before any board had power), no board powered yet | its `CLAUDE_CODE_CHAT.md`, `PLAN.md`, `DESIGN_NOTES.md`, `BRINGUP.md`, `bringup/STATUS.md`, `bringup/REVB.md`; its `CLAUDE_PCB.md` is a public snapshot of this file |
 | **Halloween board** (`~/mudd/pcbs/halloween1`: a cute, physics-y board for Jason's six-year-old, the first with real power: 12 V, amperes into PCB coils) | In design from 2026-10-07 | its `CLAUDE_CODE_CHAT.md`, `PLAN.md` |
 | **GPS GH adapters** (`~/mudd/pcbs/gps-gh-adapters`: JST-GH GPS port adapters, Holybro 10-pin to Cube 8-pin and an any-to-any debugging hub; public, github.com/gallicchio/gps-gh-adapters) | Designed 2026-10-08/09, rev A, not yet ordered | its `CLAUDE_CODE_CHAT.md`, `research/PINOUT_EVIDENCE.md` |
-| **LAoE Discrete Op-Amp** (`~/mudd/pcbs/op-amp-pcb`: the Lab 5L op-amp of *Learning the Art of Electronics* from the book's six SOT-23 2N3904/2N3906 on a 100 x 100 mm board whose silkscreen is the schematic, for a first electronics lab; public, github.com/gallicchio/op-amp-pcb) | Designed 2026-10-24, rev A; design review round 1 (author, Gemini 4 Argon, Kimi K3) closed and applied 2026-10-27 (`design_reviews/`); the 741-style current limit replaced by one 330 ohm resistor inside the loop 2026-10-28; pre-order checks of 2026-10-29 (JLCPCB's drawings overlaid by the upload CPL, pin names, pages fitted, one rail missing simulated) passed, ready to order | its `CLAUDE_CODE_CHAT.md`, `docs/DESIGN_NOTES.md`, `docs/HANDBOOK.md` |
+| **LAoE Discrete Op-Amp** (`~/mudd/pcbs/op-amp-pcb`: the Lab 5L op-amp of *Learning the Art of Electronics* from the book's six SOT-23 2N3904/2N3906 on a 100 x 100 mm board whose silkscreen is the schematic, for a first electronics lab; public, github.com/gallicchio/op-amp-pcb) | Designed 2026-10-24, rev A; design review round 1 (author, Gemini 4 Argon, Kimi K3) closed and applied 2026-10-27 (`design_reviews/`); the 741-style current limit replaced by one 330 ohm resistor inside the loop 2026-10-28; pre-order checks of 2026-10-29 (JLCPCB's drawings overlaid by the upload CPL, pin names, pages fitted, one rail missing simulated) passed; ordered, and a rev A board amplified a sine by hand on 2026-11-10; bring-up planned and rehearsed on a simulated bench 2026-11-15, not yet run on a board (section 32) | its `CLAUDE_CODE_CHAT.md`, `docs/DESIGN_NOTES.md`, `docs/HANDBOOK.md`, `BRINGUP.md`, `bringup/REVB.md` |
 | **LAoE PID Motor Control Loop** (`~/mudd/pcbs/motor-pid`: Lab 10L of *Learning the Art of Electronics*, a motorized fader held to a target by P, D and I on a 170 x 120 mm board whose silkscreen is the schematic; seven LM321 singles, a D2PAK push-pull on 2 oz copper, a PTC fuse ahead of DRIVE; public, github.com/gallicchio/motor-pid) | Designed 2026-10-24/27, rev A, design review round 1 closed (three reviews applied); pre-order checks from the newer lessons 2026-10-29 (section 28), BOARD_DATE 2026-10-29, being ordered | its `CLAUDE_CODE_CHAT.md`, `docs/DESIGN_NOTES.md`, `docs/HANDBOOK.md` |
 
 Citations like "(Lorenz P3)" or "(GPSDO r29)" point at the prompt (P) or round (r) that
@@ -28,6 +28,53 @@ and high-power boards to come, written down before a board of Jason's needed it 
 2026-10-07: "be sure to incorporate tips for those fancier boards"). They cite their
 sources instead of a board. When a board teaches one of them the hard way, move the
 lesson up beside the others and cite the board.
+
+## Two checks no board ships without, and a third (ECP5-2ADC-2DAC, 2026-11-16)
+
+ECP5-2ADC-2DAC rev A went to JLCPCB with **its USB programming port dead**, after the author's pin audit and five
+LLM reviews in two rounds had all passed it. The FT2232H's VPHY and VPLL got 1.8 V where its data sheet says
+3.0-3.6 V, and its D+ and D- were swapped. With no JTAG and no UART, nothing on the board could be tested until it
+was reworked by hand. Both faults were plain in the netlist against the data sheet's pin table. Both checks below
+are **scripts that fail the build**, run on every build (section 10, gate 2), and every review brief asks the
+reviewers to redo them from the data sheets:
+
+1. **Every power pin of every IC, by voltage.** For each IC, transcribe the data sheet's pin table into a table:
+   pin number, the data sheet's pin name, the voltage range it needs, and the data sheet's line quoted. That means
+   every VCC, VDD, VIO, VCORE, VPHY, VPLL, AVDD, DVDD, VREF and bias pin; every regulator input and output; every
+   pin an internal regulator feeds. The script reads the netlist, finds the rail on each pin, and fails unless the
+   rail's nominal voltage, with its tolerance, is inside the range. A pin missing from the table fails as well.
+2. **Every pair's polarity, connector to chip.** This covers USB D+/D-, LVDS and TMDS P/N, Ethernet MDI+/-, CAN
+   H/L, RS-485 A/B and every clock pair. Walk each line from the connector's pin to the chip's pin, by pin
+   function, through every part in its path. For ESD arrays with pass-through pin pairs (USBLC6-2: I/O1 is pins 1
+   and 6, I/O2 is pins 3 and 4), series resistors, common-mode chokes, level shifters and analog switches, follow
+   the data sheet's internal pairing. Assert that the connector's + arrives at the chip's +. Where an FPGA pin can
+   take either line, print which way round it landed.
+
+3. **Every connector that follows a standard, against the standard's drawing, from the placed pads.** This covers
+   Pmod, SYZYGY, HDMI, USB-C, JTAG and any vendor header. For each one, check where pin 1 is, which end power and
+   ground take, and the row order, as seen in the standard's own figure (its viewpoint stated), computed from the pad
+   coordinates and the footprint's rotation. The first whole-tree audit (2026-11-16, `tools/pin_audit/`) found
+   ECP5-2ADC-2DAC's Pmod sockets, and the IcepiZero Pmod adapter they were copied from, mirrored end to end against
+   the Pmod spec's figure 5. A bought Pmod plugged in normally meets +3V3 on its IO1. The netlist was right, the
+   drawing was wrong, and neither of the first two checks can see that. **Dual-row and right-angle headers:**
+   section 7, "Dual-row headers", sets out how to work through their geometry, in ten steps.
+
+**Parts that are not fitted are checked both ways.** Jason (2026-11-16): "The checker script should not completely
+ignore do-not-fit parts, but instead should check the situation in cases where they are and are not fitted."
+- **How:** check the board as built, with every DNP part off. Then check it again with each DNP part fitted on its
+  own, and with any combination meant to go on together.
+- **Why:** an option that is harmless today gets fitted later by someone who trusts the schematic.
+  - GPSDO-PYNQ-Z2's 13 BAV99 input clamps are DNP. The symbol draws a common-anode pair where the part is a series
+    pair, so a fitted clamp is two forward diodes across +3V3_A.
+  - SyzygyRadioBoard's L1 (DNI) would short the PLL's VP to ground through L2.
+- **Tool:** `tools/pin_audit/pin_audit.py` does this. It also fails a diode path that conducts from one rail to
+  another, a diode symbol whose A/K pins disagree with the part's data sheet, and two rails of different voltage
+  tied through a bead, an inductor or a resistor of 10 ohm or less.
+
+**A schematic note, a generator comment or "verified" in a review brief is not evidence.** The ECP5's schematic
+printed the mistake as a fact ("VREGOUT: internal 1.8 V, feeds VCORE x3, VPLL, VPHY"). Its brief told the reviewers
+that "every IC's pin numbering" had been checked, which covered pin numbers, not voltages or polarity. One reviewer
+restated the note as checked. A claim of "checked" names the script and its output file.
 
 ---
 
@@ -48,6 +95,25 @@ lesson up beside the others and cite the board.
 - **"Go all night".** Keep going, log progress in the chat as you go, and write findings
   down before a session or the power could die (GPSDO r28). Do not stop to ask what you
   can decide; record the decision and why.
+- **Your own background processes: never find them by a pattern your command contains**
+  (Jason, 2026-11-04: "a recurring problem"). The Bash tool runs each command as
+  `bash -c '<the whole command>'`, so `pgrep -f X`, `pkill -f X` and `ps aux | grep X`
+  match the shell running them. A waiter `while pgrep -f "night.py gaps"` matched itself and
+  sat out its whole timeout an hour after the test had ended; `pgrep -f ... | tail -1`
+  returned a pipeline helper, so the waiter on it returned at once; `pkill -f X` kills its
+  own shell and anything else sharing X. The rules (the root `CLAUDE.md` has them in full):
+  1. **Take the PID at launch:** a simple background command with its output to a file,
+     `python3 run.py > run.log 2>&1 & echo $! > run.pid`. `$!` of a pipeline is its last
+     command (`... | grep > log &` gives grep's) and of `cd d && python3 run.py &` a
+     subshell (both tested 2026-11-04), so neither pipe a long run nor background a list.
+  2. **If you must search, anchor the pattern** to the program's own command line, which a
+     shell's (`/bin/bash -c ...`) cannot match: `pgrep -f '^python3 night.py gaps'`, then
+     `ps -o pid,lstart,args -p <pids>` before trusting it. Not the bracket trick
+     (`[n]ight.py`): it fails when the plain name appears elsewhere in the same command.
+  3. **Wait on a verified PID** (`tail --pid=<pid> -f /dev/null`, or `while kill -0 <pid>`),
+     never on a `pgrep` loop.
+  4. **Never `pkill -f` or `killall` by pattern:** kill the one PID `ps` has just shown; a
+     task the harness started is stopped with TaskStop.
 - **Be opinionated.** Recommend, with the trade-off stated; do not survey options you
   will not pursue (GPSDO P14).
 - **Self-critical review.** End with the most likely causes of a dead-on-arrival board
@@ -89,12 +155,17 @@ lesson up beside the others and cite the board.
   - the brief says in bold, first, that only files count (below), lists what the build
     rewrites so "do not run the build in place" is concrete, states the claim to break
     with the board's own numbers, numbers the things to attack with the file to read for
-    each, restates this file's rules as checks (the reviewers cannot read it), gives a
+    each, restates this file's rules as checks (the reviewers cannot read it), **asks every reviewer to redo the
+    power-pin voltage audit and the pair-polarity trace from the data sheets themselves, and to write each IC's table
+    into the report** (the block at the top of this file: the ECP5's five reviewers did neither), gives a
     tools table with what each command writes, lists what is already known or decided,
     and prescribes the report's sections (verdict; findings table first, then each in
     full with severity, place, evidence, fix, confidence; the brief's questions answered
     by number; what was checked and found right; what could not be checked; publishing
     concerns; patches);
+  - **"already verified" in a brief names the script and its output**, and lists separately what was only read.
+    A reviewer told "verified" skips it: the ECP5's brief said "every IC's pin numbering against the datasheet ...
+    FT2232H". That was true of the pin numbers and false of the voltages and the D+/D- order, and nobody re-checked;
   - the author's own review goes in the same place under its own model's name, written
     before reading anyone else's (below);
   - the date orders the rounds: a second round is a later date, not a "2" suffix. (The
@@ -833,7 +904,8 @@ reader would ask is answered at the place they would ask it (GPSDO P7, ECP5 P1).
     to five nets). Route at the pad's width as before, then widen each track toward
     its class width wherever the copper round it leaves clearance (`pcb/fatten.py`): no
     route moves, DRC sees the same board or more room, and the long runs come out wide.
-- **Ground.** Keep an unbroken ground reference under every fast signal. A layer change
+- **Ground.** Keep an unbroken ground reference under every fast signal, and **ground,
+  never a supply plane, under every RF and accurate analog signal** (§14, §14a). A layer change
   gets a ground via within about 1.5 mm. Keep analog and digital apart physically, and
   keep switch nodes small (ECP5 P2).
 - **Stack-up and layer assignment** (Rosenberg). Choose the stack-up before routing, from
@@ -844,7 +916,8 @@ reader would ask is answered at the place they would ask it (GPSDO P7, ECP5 P1).
     traces as possible, each short.
   - **4 layers, parts on top:** L1 parts and signals; **L2 solid ground with nothing but
     via holes in it: no traces**; L3 supplies and leftover routing, the rest filled with
-    ground stitched to L2; L4 the same as L3.
+    ground stitched to L2; L4 the same as L3.  So an RF or accurate analog trace on L4 sees
+    L3: ground fill there under it, not a supply island (§14, §14a).
   - **4 layers, parts on both sides:** L1 and L4 parts, signals and supplies; L2 ground;
     L3 supplies.
   - **Why the ground goes on L2:** a via's inductance grows faster than its length.
@@ -1764,6 +1837,139 @@ mistake with an input level or a plug direction (GPSDO P7).
 - **Gender and orientation** of anything that plugs in. Label header pins 1, 2, 39, 40
   as the mating module prints them, so a module that flips upside down goes in right
   (Icepi P30, P34, P35).
+- **Dual-row headers, and right-angle ones above all, are worked out from geometry, never
+  from pad numbers** (Jason, 2026-11-16: "There have been several problems with these,
+  especially where they are supposed to be 90 degree headers").
+
+  **The record:**
+  - **ECP5-2ADC-2DAC rev A's J303/J304** were copied from the IcepiZero Pmod adapter's J3.
+    All three are mirrored end to end against the Pmod spec's figure 5, so a bought Pmod
+    meets +3V3 on IO1 (REVB 14).
+  - **AMOD-A and RF-MOD's plugs** were first laid with KiCad's pad numbering on JLCPCB's
+    footprint, which numbers the same part from the other end. Every plug pin k met host
+    pin 13 - k (section 17).
+  - **OWLternatingCurrent's tree-perch joint** is turned round: pin n meets pin 17 - n
+    (REVB 1.9).  Its first suggested fix, turning the tree's own header, could not work: a
+    right-angle part turned 180 degrees in place points its pins into its own board.  Only
+    the mating part can turn, or the numbering.
+  - **The GPS adapters** taught that two side-entry headers on one face of a board meet in
+    reverse order (section 5).
+  - **PMOD_direct_to_SMA and VerifierPCB** do not say which row holds Pmod pins 1-6.
+  - **The IcepiZero AD9226 and AN108 adapters' J2** look like the mirror image of their
+    modules' connectors (*uncertain*, from photographs).
+    - **Cause:** J2 was drawn as if a module's pin positions did not depend on which face of
+      it meets the adapter.
+    - **AN108:** "right way up" feeds the module -5 V.
+    - **AD9226:** every signal lands on its row partner (`IcepiZeroADCDAC/PIN_AUDIT.md` C1,
+      C2).
+  - **The ECP5's Pmod sockets** stood a quarter turn round in JLCPCB's placement preview
+    (section 8).
+
+  The netlist is right in every one of these, so no netlist check can see them. Work
+  through the following for every 2-row connector, as code where it can be:
+  1. **Name the four ways it can sit.** A 2 x N part fits its outline four ways: as
+     intended, mirrored end to end, with its rows swapped, or both (a half turn). For each
+     of the other three, say what it does, starting with where power and ground land.
+     - **Pmod:** a row swap puts IO1-4 and IO5-8 on each other's lines, which is a labels
+       fault. An end-to-end mirror puts 3.3 V on IO1, which damages parts.
+     - A right-angle part's opening must face off the edge, but the pad numbering can
+       still be any of the four.
+  2. **Know which numbering each side uses.**
+     - **Zigzag:** 1 and 2 across from each other, odd pads in one row, even in the other.
+       KiCad's footprints and IDC use it.
+     - **Row by row:** the Pmod spec puts 1-6 in the upper row and 7-12 in the lower.
+     - **Other footprints of the same part:** a vendor's or JLCPCB's footprint may number
+       from the other end (section 17).
+     - Write the mapping as a function in the generator, with its source and a test.
+       Derive each pin from the pad's **position relative to the body**, never from its
+       number.
+  3. **Read the footprint's geometry from the board file, not from memory:** each pad's
+     position and the F.Fab body outline.
+     - **KiCad's `PinSocket_2xNN_P2.54mm_Horizontal`,** as placed on ECP5 J303 and read
+       2026-11-16, at rotation 0:
+       - pad 1 at the origin, with the odd pads running +y (south) at x = 0;
+       - the even pads at x = -2.54;
+       - the housing and its opening toward -x.
+     - **The odd column is the upper row,** because it is the row farther from the
+       opening, and the upper row's leads bend down farther back.
+     - **Turned 180 degrees at an east edge,** pad 1 is therefore at the **south** end.
+       That is the opposite of the Pmod spec's figure 5, and it is how J303/J304 went
+       wrong.
+     - **Any other footprint:** check it the same way. Assume nothing about a header
+       (male) from the socket.
+  4. **Write down the standard's viewpoint, then compare in the same frame.** Every figure
+     has one: a top view of the host, a view into the socket, or the module's component
+     side.
+     - **Pmod:** figure 5 is a top view of a host socket on an east edge (pin 1 north,
+       VCC and GND south). Figure 2 is a top view of a module plug on a west edge (pin 1
+       north).
+     - Compute your pads in that same frame and compare them position by position.
+     - Convert between views with coordinates, never in your head. A view into the socket
+       from outside the edge is a different frame from a top view, and getting its
+       handedness wrong is exactly the end-to-end mirror.
+  5. **Mate the halves in one frame, and say how they meet.**
+     - **Edge to edge,** both component sides up (a right-angle socket and a right-angle
+       plug): contacts meet at the same position along the edge, upper row to upper row.
+     - **Stacked,** a board plugged on face down (a HAT, a shield, the Icepi adapters):
+       its socket is on its bottom side, so mirror that footprint properly. Seen from
+       above, its pad n must sit over pin n, at 0.000 mm.
+     - **A ribbon:** trace pin 1 through the cable as it will be crimped (the stripe and
+       the key). Two side-entry headers on one face meet in reverse order.
+     - Assert VCC on VCC and GND on GND first, then IO1 on IO1.
+  6. **Two halves that agree prove nothing about the standard.** The ECP5 sockets and the
+     AMOD plugs mate with each other and both disagree with Digilent's.
+     - Check at least one half against the standard's own figure, independently of the
+       other.
+     - Then mate every partner the board will meet, including a bought module drawn
+       from the standard's figure.
+  7. **Re-derive a copied connector on every board.** "The same footprint, the same
+     mapping as the ECP5's sockets" carried the adapter's mirror onto a built board.
+  8. **Put the orientation on the silkscreen.** Print pin 1, and print the names at the
+     end where they are ("3V3 GND" at the power end, "IO1" at its end). Then a person
+     plugging in, and a reviewer holding the standard's figure, can see it. A label such
+     as "PMOD 1-4: IO1-4" in the middle says nothing about which way round it is.
+  9. **Check it physically.**
+     - Before ordering: print the board 1:1 and lay the real connector and the mating
+       module on it (section 5).
+     - On a built board, before power: plug in a bought module and buzz its GND to the
+       board's GND, and its VCC to 3V3 (under 1 ohm).
+  10. **Gate it.** The connector check (section 10, gate 2d; `tools/pin_audit/connectors/`)
+      reads the placed pads. For each contact it computes the position along the edge, the
+      row and the side; it compares those with the standard's table and mates every pair of
+      boards meant to mate. The build fails on a mismatch.
+
+  **A mirrored 2-row connector cannot be undone by re-soldering or by stacking straight
+  parts.** Jason (2026-11-16) asked whether the ECP5's and the AMOD plugs' right-angle
+  Pmods could be moved to the bottom side, or extended with long double-row pins and
+  sockets, to make them standard. Worked out from J303's placed pads in
+  `tools/pin_audit/connectors/pmod_rework_options.py` (`.out` beside it), it can't be done:
+  - **Moving a through-hole right-angle part to the bottom** keeps every contact's place
+    along the edge and its net, and moves the far row to the far side below the board: a
+    mirror through the board.
+    - J303 moved to the bottom mates a standard module pin for pin only with the module
+      turned over, components down.
+    - Upright, it still puts 3.3 V on IO1.
+    - The as-built socket already takes a turned-over module, with IO1-4 and IO5-8
+      swapped in the `.lpf`. So the move gains only the swap, at the cost of desoldering
+      two 12-pin sockets from a built multilayer board.
+  - **Moving both the socket and the plug to the bottom** keeps them mating each other,
+    and each still meets standard parts only turned over: today's situation in mirror
+    image.
+  - **A chain of straight-through parts** (long double-row pins, sockets on pins, a
+    pin-for-pin extender) is invisible upright and acts as one turn when turned over, and
+    two turns cancel. So a chain gives either today's mismatch or "power right, IO1-4 on
+    IO5-8", never the standard.
+  - **The reason:** an end-to-end mirror that keeps the rows reverses the order along the
+    row, and turning or sliding rigid straight parts can only produce that together with
+    a row swap. Undoing it needs wires that cross.
+  - **What does work:**
+    - plug the other part in turned over and swap pmod[0..3] with pmod[4..7] in the
+      `.lpf` (power lands right);
+    - or use a **crossed adapter:** a small board with a right-angle 2 x 6 plug on one
+      edge and a socket on the other, rows kept and positions reversed (s to 5 - s). The
+      same design makes a rev A host standard for a bought module, and a standard host
+      fit an AMOD rev A plug.
+    - A crossed 12-wire jumper harness does the same, less tidily.
 
 ## 8. Manufacturing package (JLCPCB)
 
@@ -2327,6 +2533,91 @@ mistake with an input level or a plug direction (GPSDO P7).
 - **Give the board a way to see itself.** A spare core sampling its own pins into a VCD
   is a logic analyser with no wires, and it answers "how do I probe this?" for most
   problems.
+- **Bring the board up on a PC before it has power** (GPiBridge Prompt 12, 2026-11-15: "If there is
+  any firmware for this project, write it and simulate it as best you can before connecting any
+  hardware. This includes one-off things just for the bringup process."). The evening before the
+  first board was plugged in found seven firmware faults, none of which the existing host tests
+  could see (GPiBridge `bringup/REVB.md` section 2). What found them:
+  - **Put the firmware behind a pseudo-terminal** (`firmware/test/sim_board.c`): everything above
+    the vendor SDK, on a model of the chips at its pins, answering on a pty that stands for its
+    USB serial port. Then the real host software runs against the real protocol code:
+    lab-instrument-control's `Link` and its HP 33120A driver found that a data line over 8192
+    bytes was dropped (a 16,000-point waveform is 32 kB). Test the longest message the host
+    library really sends, not the longest the test author thought of.
+  - **Run each bring-up step against it, with faults planted** (`pytest bringup/`): a good board
+    must pass and each fault (no 5 V, a switch stuck on, an open joint, a bridge, a connector
+    turned round) must fail the step that is there to catch it, by name. A step that has never
+    failed in simulation will not be believed when it fails at the bench.
+  - **Several simulated boards on one simulated cable, counting bus fights.** Two adapters,
+    both started by USB, drove IFC against each other before the test had begun: the firmware
+    now looks for another controller before it takes the bus. Count every moment two drivers
+    oppose on a line, and require zero.
+  - **Assert "nothing was touched" as well as "the right thing happened".** The check "this
+    board asserted no line while it looked" found that the pads' pull-downs made a listening
+    SN75161B assert NRFD, NDAC and SRQ for the moment its 5 V came up. Order pulls and power
+    switches so that a powered receiver never sees a floating or wrong-way input.
+  - **Read every early-return path of a function that drives pins.** `gpib_serial_poll()`
+    skipped its transfer with the bus off, then ran the lines that end one, into unpowered
+    chips. Plant the bug back to prove the new test sees it (376 breaches).
+- **A check that skips itself when its tool is missing has never run on that machine**
+  (GPiBridge, 2026-11-15). `sigrok_check.py` said "skipped (no sigrok-cli)" and passed on the
+  bench PC; installed, sigrok 0.6 named the VCD's channels `gpib.DIO1` where 0.5 said `DIO1`,
+  and 0 of 12 recordings decoded. Install every tool a check wants on the bench PC before bench
+  day, make "skipped" a loud line in the build's summary, and write files that do not depend on
+  one version's naming (no `$scope` in a VCD meant for sigrok).
+- **Let the firmware read its own rails** (GPiBridge rev A, `bringup/REVB.md` 1.2). An MCU's
+  spare ADC pins cost a divider each; left unconnected, the only way to a rail is a hand on a
+  probe. Route VBUS, each switched rail and the core supply to ADC pins and report them in the
+  status command. Until then the chip's temperature sensor, read against the ADC's reference,
+  gives the 3.3 V rail to about 5 % with no pin at all (RP2350: 0.706 V at 27 C over the rail).
+- **Two of your own boards are each other's test fixture: give the firmware a raw mode**
+  (GPiBridge `++t raw`, `bringup/run.py pair`). One board asserts each line alone, the other
+  must read exactly that line, then the other way, in every driver mode. That walks every
+  driver, receiver and connector joint of both, and names an open joint, a bridge or a
+  connector turned round by contact number. A lone board's self-test sees its own receive
+  paths and shorts; it cannot see the far side of its connector's joints.
+- **A hand on a probe gets a beep, not a prompt** (GPiBridge `run.py rails`, for a rev A whose
+  test points are still pads). The step polls the scope, knows which rail the tip is on by its
+  voltage (and tells a switched rail from its source by switching it for a moment), records it
+  and makes the scope beep; the person looks at the board, not at a screen, and touches the
+  points in any order.
+- **Say where the bring-up stands in a file the tool rewrites** (GPiBridge `bringup/STATUS.md`;
+  Jason, 2026-11-15: "it'll be easy for me to get confused when I pop in and change some
+  physical configuration, so you'll need to always remind me of where we're at"). Every step
+  rewrites one page: a table of boards against stages, and the next physical thing, in the
+  silkscreen's words. Begin every bench message with it. Give each board a name at first
+  plug-in (A1, L1), tied to its serial number, written on it with a marker, and an "identify"
+  command that flashes its LEDs.
+- **Park the board between steps** (GPiBridge). Each step ends with the board in a state in
+  which any cable may be changed: off the bus, outputs off, told to stay so at the next
+  power-up. Then a visit to the bench never needs a "wait, let me turn that off first", and
+  one LED says so (GPiBridge: green off means off the bus).
+- **The first bugs a board finds are in the code no simulator runs** (GPiBridge A1, 2026-11-16). Every
+  protocol, pin and bring-up step had run against the firmware on a PC; the board's first morning
+  found two bugs, both in `main.c`'s start-up, watchdog and flash code, which the simulator stubbed.
+  List the unsimulated code in the firmware's README, and give each of its paths a bench check that
+  runs on day one: a setting written and read back across a reboot **from a fresh power-up**, three
+  deliberate reboots in a row, and the crash failsafe made to fire on purpose (`++t crash`).
+- **RP2350 and the Pico SDK (2.1.1), two traps found on the bench:**
+  - `watchdog_caused_reboot()` is true after a deliberate `watchdog_reboot()` as well. A "three crashes
+    in a row go to BOOTSEL" failsafe built on it sent the board to BOOTSEL after `++rst` and two
+    re-enumerations. Count crashes with `watchdog_enable_caused_reboot()`, which is a timeout of the
+    watchdog the firmware enabled (the SDK's mark in SCRATCH4).
+  - `flash_safe_execute()` refuses, returning `PICO_ERROR_NOT_PERMITTED` and writing nothing (an assert
+    only in Debug builds), unless the other core is a lockout victim. A core 1 started only on demand
+    (a capture) meant no setting was saved in any power-up that had not run one. Start core 1 at boot,
+    or build with `PICO_FLASH_ASSUME_CORE1_SAFE=1` if it never runs, and put the refusals in the status
+    command, not only on a log nobody reads.
+- **A check that passes because of what ran before it proves nothing** (GPiBridge `bare`): "a setting
+  survives a reboot" passed only because the capture before it had started core 1. Put each check
+  where it depends on nothing earlier in the step, or run it first.
+- **When a step fails, compare bytes, and distrust the message** (GPiBridge A1). "Did not come back
+  after a reboot" was the third reboot, not the first; an hour of bisecting the wrong one ended when the
+  step's and a hand replay's sent bytes were logged and diffed (`GPIBRIDGE_WIRE_LOG`). A wait must say
+  which event it waited for and what it saw. Two bench facts from the same morning: closing a USB serial
+  port blocks while the device is hung (the kernel's control transfer waits), so time a hang from
+  the event and not from after `close()`; and `picotool` called the instant BOOTSEL appears in sysfs is
+  not answered: retry for a few seconds.
 - **Check a product name against trademark rules, not just search results.** Raspberry
   Pi's rules forbid "Raspberry" as a brand for hardware; "RaspberryGPiB" was proposed and
   had to be declined.
@@ -2370,7 +2661,21 @@ mistake with an input level or a plug direction (GPSDO P7).
 Before calling a schematic, PCB or release done:
 
 1. ERC clean (the warnings understood), with the netlist exported.
-2. Every symbol pin checked against the datasheet figure.
+2. Every symbol pin checked against the datasheet figure, and **these two checks run as scripts that fail the build**
+   (the block at the top of this file; ECP5-2ADC-2DAC rev A failed both and lost its USB port):
+   - **2a. Power pins, by voltage.** Each IC gets a table transcribed from its data sheet's pin table: pin, name,
+     the voltage range it needs, and the line quoted. Every power, reference, core, PHY, PLL and analog-supply pin
+     is in it, along with what each internal regulator's output may feed. The script checks each pin's rail from
+     the netlist against its range. A missing pin fails, and so does a rail outside the range. Print the table in
+     the release log.
+   - **2b. Pair polarity, by pin function, connector to chip,** through every in-line part by its data sheet's
+     internal pairing (ESD arrays' pass-through pins, resistors, chokes, shifters). Every + reaches a +. Print
+     each pair's path.
+   - **2d. Standard connectors against the standard's drawing** (the top block's third check): pin 1's place, the
+     power and ground end, and the row order, computed from the placed pads and compared with the standard's figure.
+   - **2c. Pin numbers by function, not by memory or variable name**, for every pin the generator names by
+     number: `u.pin("8")` must be read against the data sheet's table ("8 DP"). The ECP5's generator wrote
+     `dmp, dpp = u.pin("8"), u.pin("7")`, and pin 7 is DM.
 3. A path trace of every signal, power rail, clock and strap.
 4. No overlaps on schematic sheets, checked in code, by `pdftotext -bbox` on the
    exported PDF, and by eye on the PDF.
@@ -2484,6 +2789,11 @@ Before calling a schematic, PCB or release done:
     - **Width, gap and ground:** right everywhere (0.29 mm, the gap 0.25 mm, ground under 100 %).
     - **Fence:** short. 0.9-1.0 vias per mm on its longer runs, where the generator skipped spots, and none within 1.6 mm along RX MON's 5.8 mm tap.
     - **What cost the dB:** gates 25-31.
+33. **Every accurate analog net** (named in the design notes, §14a), measured on the filled board as gate 32 measures the RF lines:
+    - ground on the next layer under at least 95 % of each segment, and under each of its parts' pads;
+    - print every stretch over a supply, with the supply's name and the length.
+
+    Not yet run on any board (added 2026-11-04).
 
 ## 11. KiCad 10 and tooling quirks
 
@@ -2492,6 +2802,15 @@ Before calling a schematic, PCB or release done:
   and the op-amp board nearly got a second, divergent fitter.  Search with `find -L` or a
   trailing slash (`find ~/OpticsPCBs/ ...`), and grep the tools a lesson names before
   writing one.
+
+- **The bench PC's `PATH` hides the system's tools behind a vendor's** (GPiBridge, 2026-11-15, on
+  `bell`). Vitis 2022.1 puts its own CMake 3.3.2 (which no longer starts: `libidn.so.11`) and an
+  `arm-none-eabi-gcc` 11 ahead of `/usr/bin`. A build script must name what it uses: put
+  `/usr/bin` first in the environment it gives CMake, pass the toolchain's place
+  (`-DPICO_TOOLCHAIN_PATH=/usr` for the Pico SDK), and build into `build-<hostname>/`, since a
+  CMake cache remembers the folder it was made in. Tools installed for a bring-up go under
+  `~/.local` with names that shadow nothing: `openocd-xpack` (an OpenOCD that knows the RP2350)
+  beside the system's `openocd`, which another project's scripts call.
 
 - **Running KiCad.** The AppImage is `~/.local/bin/kicad-10.0.6-x86_64.AppImage`
   (`kicad-cli` is a subcommand). An extracted copy is at `~/.local/kicad10/AppDir`. Run
@@ -2996,6 +3315,31 @@ vendors' PCB guides (AMD/Xilinx UG583, Lattice's ECP5 notes).
 Also for boards to come, from the vendors' reference designs, Rosenberg, and the
 SyzygyRadioDrivers field-solver study.
 
+- **Ground, not a supply plane, under every RF chain** (Jason, 2026-11-04: first here and first in §14a).
+  Every copper layer that an RF line, pad or part can see is ground:
+  - the layer under the line, on whichever side of the board it runs. A line on B.Cu of a 4-layer board
+    sees In2, which §5's stack-up makes the supply layer: fill it with ground there.
+  - whatever lies under a void in that ground: the relief window under a wide pad, a launch's antipad, a slot;
+  - the layer under each match, bypass, choke and load.
+
+  The supply islands go beside the chains, never under them. Each RF part's supply comes in as a short
+  filtered feed: the choke with its bypass on its cold pad, then a ferrite (the bullets below).
+  - **Why:** a line's return current runs in the plane nearest it (§13). Over a supply, the return
+    reaches ground only through that supply's decoupling capacitors. The island is also a cavity that
+    every pad, window and choke opening onto it shares: what one chain puts in, every other reads out.
+    Over ground, the return runs straight back under the line, and the fields end on the reference that
+    every part of the chain measures against.
+  - **Rev A broke it** (CostasLink; `sim/aslaid/REPORT.md` findings 5, 6 and 8):
+    - one +5V_RF island, 86 x 44 mm on In2, under both chains, opened onto by the In1 relief windows
+      under the ADL5611s' pads;
+    - RFOUTB's pull-ups on B.Cu over the PLL supply islands;
+    - the coupler taps and J204's route referenced to a supply.
+
+    Its transmitter leaks into its own receiver at -53 dBm at RX MON (REVB 10), and the path is still
+    not found. The as-laid model puts the plane's own share 20-40 dB under the leak, only because that
+    island happens to sit 0.21 mm over the bottom ground (the "one supply island" bullet below). Do not
+    count on the stack to rescue the next board: rev B puts ground on In2 under the RF chains (REVB 10, 54).
+  - **Check it:** gates 29 and 32 (§10) check the plane under every RF segment and every void in it.
 - **Copy the radio vendor's reference layout exactly**, as GPiBridge copied the RP2350's
   regulator: the same kind of stack-up, the same 50 Ω line, the matching network beside
   the chip, the ground vias under and round it.
@@ -3295,6 +3639,44 @@ The faults this simulation, and the gates that measure their causes, should have
   - **Why:** rev A's faults can be tested on the bench only because the parts are reachable: lift C102; bodge a capacitor onto a choke's cold pad.
   - **The rule:** give each RF IC pin a DNP 0402 shunt pad on its own pad, and each choke's cold end a capacitor pad. Then the bench can try what the simulation suggests.
 
+## 14a. Accurate analog signals
+
+What counts as accurate analog:
+- ADC inputs and DAC outputs;
+- references and the thresholds set from them;
+- a VCXO's or VCO's tuning voltage, and loop filters;
+- high-impedance nodes, summing junctions and high-gain stages;
+- anything whose microvolts or picoamps matter.
+
+Name these nets in the design notes, so the rules and gate 33 know which they are.
+
+- **Ground, not a supply plane, under every accurate analog signal** (Jason, 2026-11-04; the same rule as §14's first).
+  - **Under what:** each such trace and part, its feedback network, its filter capacitors and its reference.
+  - **Which ground:** the plane the ADC, DAC or amplifier measures against.
+  - **On a 4-layer board:** route them on L1 over L2. One that must run on L4 gets ground fill on L3 under it, not a supply island (§5's stack-up puts supplies there).
+  - **Supplies:** feed these parts as short patches from their regulator (§5), beside the signal, not under it.
+  - **Why, in numbers** (estimates for JLC04161H-7628): a trace couples, through its capacitance, whatever the plane under it carries.
+    - 20 mm of 0.2 mm track 0.21 mm over its plane is about 1.6 pF: 100 kΩ at 1 MHz, 1 kΩ at 100 MHz.
+    - Over a supply, a 10 kΩ node carries about a tenth of the plane's 1 MHz ripple, and a 100 kΩ node about 70 %.
+    - At 100 MHz, a switching converter's edges reach either node almost whole.
+    - Over ground, the same capacitance only loads the node; it couples nothing in.
+  - **And the return:** the signal's return current runs in the plane under it (§13). Over a supply, it reaches the measuring chip's ground only through the supply's decoupling capacitors, and the supply's noise lies between the signal and its reference.
+- **Every amplifier in a converter's path must slew its full swing across the band it is sold for** (ECP5-2ADC-2DAC
+  board A, 2026-11-16, REVB 21).  Full-power bandwidth is SR / (2 pi V_peak): the ADC front end's OPA1612 (27 V/us;
+  its data sheet's full-power bandwidth 4 MHz at 1 V pk-pk) feeds a 65 MS/s ADC's 32 MHz band.  On the board its step response
+  compressed above 150 mV (33 V/us at a 1 V step, measured at 0.25 ns by equivalent-time sampling) and the harmonics
+  climbed from -45 dBc at 6 MHz to -26 dBc at 11 MHz.  Check SR against the largest signal at the Nyquist frequency
+  for every stage, the low-noise one included; where low noise matters more, say in the design notes what band is
+  clean at full scale.
+- **The rest, from elsewhere in this file:**
+  - the analog rails as planes or patches, measured in milliohms, not traces (§5, ECP5 P30);
+  - analog apart from digital and switch nodes; aggressors and victims: distance first, then a can (§5);
+  - the critical analog lines routed second, right after the ground pour, short, with ground on both sides (§5's layout order);
+  - metal-film resistors for low excess noise and distortion (§12);
+  - a Kelvin connection to every current shunt (§15);
+  - hop a low-impedance or slow net to the other layer, never a high-impedance node (§20);
+  - never a high-impedance node, a loop filter or a fast node on a monitor mux (§9).
+
 ## 15. Power, current and magnetics
 
 The Halloween board (2026-10-07) is the first of Jason's boards with real power: a 12 V
@@ -3499,6 +3881,11 @@ silkscreen the schematic.  What the two boards taught, each a fault found by DRC
   Caught before the order by mating the two footprints on paper; fixed by moving the plug two columns and renaming the
   nets, and a fab check (`check_pmod`) now maps every plug pad to its standard pin.  For any keyed two-row connector,
   derive the pin from the pad's POSITION relative to the body, never from its number, and check both mating halves.
+  - **Correction, 2026-11-16: "both mating halves" was not enough.** The "standard pin" `check_pmod` maps to was the
+    pin of ECP5-2ADC-2DAC rev A's socket, and that socket is mirrored end to end against the Pmod specification (the
+    first block's check 3). So the AMOD and RF-MOD rev A plugs mate with that host and with nothing standard; Jason has
+    them marked as non-standard, and rev B follows the specification. Check a connector against the standard's own
+    figure first, and against our other board second: two of our boards agreeing proves only that they agree.
 - **A 2 x 6 Pmod plug's lower row is reachable only through the upper row's 0.74 mm gaps**
   (0.2 mm tracks with 0.27 mm to spare) or along the bottom edge (two tracks fit between the pads
   and the 0.3 mm edge clearance).  Feed the upper row from the back, straight down; feed the lower
@@ -3965,3 +4352,284 @@ What follows is what the nine boards' checks added.
   - AMOD's footprint slots the posts (0.9 x 1.45 mm) where JLCPCB's drawing puts them.
   - With the datum fitted to the terminals (0.251 mm), JLCPCB's posts land at the slots' centre, and Shouhan's position
     lies inside the slots too. Keep 0.251 there.
+
+## 30. Lessons from planning the AMOD and RF-MOD bring-up (2026-11-15)
+
+Nine boards, 104 tiles, about 200 jacks, and Jason at the bench only in short windows between other bring-ups ("it'll be
+easy for me to get confused when I pop in and change some physical configuration, so you'll need to always remind me of
+where we're at so that I can sit down and *correctly* do what needs doing").  Written before any of the boards was
+powered: what the planning itself taught.  The plan and its tool are `AMOD-and-RFMOD/BRINGUP.md` and `bringup/`.
+
+- **Cut a bring-up into visits.**
+  - A visit is one set of cables, what to set on the board, and what the agent then measures alone. Jason cables it,
+    types "`A.v2` cabled" and leaves; the agent runs it, judges it, logs it and posts the next card.
+  - **Name every cable once, for the whole bring-up** (G1, G2 for the generator's channels, S1-S4 for the scope's, P1,
+    P2, SA), on tape at both ends. A card then says "G2 moves from p2 IN to p4 IN; the rest stay".
+  - **Sort the tests by who must be there:** cable-only visits (unattended), "hands" sittings (a DIP way or a jumper
+    changes between measurements), analyzer sittings (a cable move every half minute), and what needs a part from
+    outside the board. Do the unattended ones first.
+  - **One file says where we are** (`bringup/STATUS.md`: the board on the bench, what is cabled, what passed, the next
+    card), rewritten by the tool after every step. Jason, or a new session, reads only that.
+  - **A picture with every card**, drawn from the board's own geometry: the tiles as printed, a coloured dot with the
+    cable's name on each jack of the visit, the USB-C and the plug where they are, so the board can be turned the
+    right way round at a glance.
+- **One table of tests, read by everything** (section 2's one source of truth, at the bench). Each test names its
+  jacks, its stimulus, its model and its limits; the cards, the measuring tool, the pictures and the rehearsal are all
+  made from it. A jack that does not exist, or a visit that needs more channels than the bench has, fails a test on the
+  PC instead of confusing a person at the bench (three cross-tile jack names were wrong in the first draft).
+- **Rehearse the whole bring-up on a simulated bench before a board is touched.**
+  - Each tile is its own model; the simulated scope has eight bits, clips and has noise, so the autoranging and the
+    fits are exercised too. A good board must pass everything, and boards broken on purpose (a dead tile, half the
+    gain, a shifted resonance, two cables swapped, a silent host) must fail the right tests.
+  - What it found here: an edge detector that counted a noisy edge several times (use hysteresis), a delay estimate
+    that failed on a ringing step (correlate the waveforms instead of timing one crossing), and a planted fault that
+    could not show (swapping two channels that carry the same signal).
+  - It cannot show that the models are right. Say so in the plan.
+- **Working each block's expected numbers out of its netlist is a design review; do it before the order.**
+  - Writing the 555 tile's test found that its CV jack, DC-coupled to the control pin through 2.2 k with a 51 ohm
+    termination to ground, drags the thresholds down: the tile will not run at the frequency its silkscreen prints.
+    The oscillator tile's "at 0 V" turned out to mean "with a source holding the jack at 0 V". Both were found three
+    weeks after the boards were ordered.
+  - **So: the bench's test table is an order gate**, as the first firmware is (section 9). For each block: what goes
+    in, what comes out, from which parts, within what limits.
+  - **A terminated control input is a load on what it controls.** For every DC-coupled input, work out the node with
+    the jack open, with a 50 ohm source at 0 V, and with a high-impedance source.
+  - **Print each input's resistance beside its jack.** A generator set "into 50 ohm" puts twice its setting on a jack
+    that is not terminated.
+- **Count the visits at design time, and design them away.** With two generator channels and four scope channels a
+  twelve-tile board is four to six unattended visits; every switch a test must flip is a sitting; every output that
+  ends on a terminal needs a part before it can be judged. What these boards would have saved (their `REVB.md`,
+  section 2):
+  - a bench power header, and a way to read one tile's current (here: a hand-made USB-C lead, and a "walk" of the
+    slide switches with a person present);
+  - rail access on every powered board (three of the seven have none);
+  - one line that turns every tile on, beside the students' slide switches;
+  - a divided monitor jack on every driven output (bridges, the class-D amplifier, the phases);
+  - a looped pair of host lines and a row of pads by the plug.
+- **Levels at the bench: quote volts into 50 ohm, and divide by a thru.** The tool sets the generator's load to 50 ohm
+  so its display agrees with the plan, sweeps the generator straight into the scope once, and divides every later
+  sweep by that.
+  - **Half a metre of coax is 50 pF.** With the scope's own input it moves every corner measured into 1 Mohm: a 1 k,
+    1 nF low-pass printed "159 kHz" reads 138 kHz. Put the cable in the model, and its capacitance in the bench's
+    configuration.
+- **The supply's display can prompt the person.** In the power stage the E3646A shows "ON A4", Jason slides that
+  tile's switch, the tool sees the step in current and shows the next name. Each tile's current, from a supply alone.
+- **A bring-up tool touches only the instruments it was given.** The bench PC's other instruments were in use for
+  other work while this was written. The tool's configuration starts with nothing assigned, opens an instrument only
+  when a test first needs it, and asks even `*IDN?` only of those it names.
+- **Gateware written for a bring-up should need the least of its host.** `pmodbench` runs from the host board's
+  oscillator, its serial channel and its Pmod pins: no PLL, no converter, no memory. It can be used as soon as the
+  host passes power, JTAG and a first bitstream, whatever its later stages find.
+
+## 31. Lessons from planning ECP5-2ADC-2DAC's bring-up (2026-11-15)
+
+Two assembled boards, ten days in their bag, and the same constraint as section 30 (Jason: "The limiting factor will be
+my time in the lab").  Written before either was powered.  Section 30's visits, status file, pictures and rehearsal
+apply here too and are not repeated; these are what this board added.  The plan is `ECP5-2ADC-2DAC/BRINGUP.md`, the
+tool `bringup/bench.py`, the rev B rows they produced `bringup/REVB.md`.
+
+- **A board with converters should test itself through a few cables, and in the next revision through none.**
+  - Three short SMA cables (DAC 1 OUT to ADC A IN, DAC 2 OUT to ADC B IN, CLK OUT to CLK IN) turned everything except
+    absolute calibration into a visit that needs a supply and two USB cables: transfer line, noise, spurs, capture
+    timing, cross-talk, every clock through the output buffer and the input comparator.
+  - **Design for it:** an output's full scale equal to an input's (here +-1 V into 50 ohm both ways), the jacks side by
+    side on one edge, a frequency counter in the FPGA on every clock input, a multiplexer that puts any clock on the
+    clock output, a PHY whose loopback returns the MAC's frames.
+  - **What a loop cannot say:** which half an error belongs to, and the volts. Keep one visit with a generator and a
+    scope for that, and plan it after the loop has run.
+  - **In the next revision the loops are switches on the board** (off at power-up), so the self-test runs in the
+    enclosure with nothing plugged in.
+- **Find out what is plugged in; do not assume it.** The tool steps each DAC a few millivolts and reads both ADCs: the
+  answer says which cable is where, whether the termination shunt is in (the step doubles without it) and which gain
+  jumper is out (ten or a hundred times). Crossed cables are accepted and remembered. A wrong cable becomes a row in a
+  table, not a failed test an hour later.
+- **The person at the bench does not see the script's prompts; the agent does.** A measurement that keeps his hands
+  busy must need no typing and no reading: the multimeter walk along the rails header takes each steady reading as the
+  next rail, in order. The instructions go in the chat before, the result after.
+- **A board that its USB cable also powers cannot be power-cycled from the PC.** Here the bench input and USB are
+  joined by a P-FET: switch the supply off and USB takes over without a blink, and the PC's hub keeps its 5 V on. So
+  the cold-boot test and the power-on scope shot need the cables pulled by hand.
+  - **Design:** a load switch after the two inputs join, on a spare pin of the USB bridge, held on by a pull-up.
+  - **Until then:** with USB out the supply's current is the witness: a board that configured itself from its flash
+    draws more than a blank one.
+- **Every connector gets a test before the order, not a line saying "later gateware".** This board's first plan left
+  HDMI, the second USB port, the microSD socket and the Ethernet data lines untested. Writing those tests took an
+  evening and found two things the order could have used: the generated constraints pull the USB lines up inside the FPGA,
+  and no one had checked which pins take a DDR register (the one bank that does not was found by the first gateware,
+  after the order).
+  - **Small tests are enough:** a card answers in SPI mode over four of its lines; a USB port is proven electrically by
+    asserting the pull-up and watching the host's reset and packets on both lines, with no USB core; a monitor's
+    EDID reads over two bit-banged pins; frames written by the PC go out and come back through the PHY's loopback
+    with their CRC checked in hardware.
+- **Run the bench procedures against the RTL, live.** The driver that will talk to the board talks to the simulator
+  through two named pipes (section 9), and the procedures run on top of it, branching on what they read.
+  - **The transport owns time:** its `sleep()` shortens every wait by one factor and its `time()` runs that much
+    faster, so timeouts keep their meaning; the counters' gate is a parameter.
+  - **The bench is knobs:** which source each input's cable comes from, the jumpers, a card, a host, a monitor, a
+    link. Models of what sits on each connector need only the behaviour the test relies on, but that part true (a card's
+    CRC-16, a host that resets the bus, a PHY on its own clock).
+  - **What the first run found:** a frequency counter's first gate after a clock is switched straddles the switch
+    (read the second); a detached USB port with a host's pull-downs is "both lines low" too (zero the reset timer after
+    attaching); resynchronising a serial protocol means discarding what the board already sent.
+- **FPGA tool facts** (section 9 has the earlier ones):
+  - `ecppll` fits only its first output exactly: asked for 50, 125 and 25 MHz it gave 52.08 or 150 MHz for the others.
+    Write the dividers by hand from one VCO that divides to all of them, and read the frequencies nextpnr derives.
+  - Yosys rejects `output reg a = 0, b = 0` in a module's port list (the second name is taken for an interface port):
+    one declaration per initialised port.
+  - A later `IOBUF` line for a port replaces the earlier one in nextpnr's LPF reader, so one design's pulls and drive
+    strengths can be a short file appended to the generated one. Count the `PULLMODE` words in the `.config` to see
+    that they arrived.
+  - A block that meets 125 MHz built alone met 98 to 117 MHz inside the full design: ask for a third more than the
+    clock when a block is built by itself, and never let an arithmetic compare feed a clock enable in the same cycle.
+- **Read a generated constraint file against each pin's job.** A rule that pulls every bidirectional pin up is wrong
+  for a USB device's D+ and D- (a host's 15 k pull-downs then sit against it) and for a hot-plug input.
+- **Every host line needs a level of its own when the host is not there.** Writing the driver's per-board pin profiles
+  (what each line does with the FPGA's pin high-impedance) was a second review of the nine boards:
+  - two chip selects with no pull-ups, so two parts could drive one MISO;
+  - clock and logic inputs of CMOS parts with no pull-downs, on boards that run from USB with no host at all;
+  - a laser's blanking line whose resting state was "on";
+  - a load switch whose own pull-down lets go after its first "on".
+  - **The rule:** for each line, write down what the tile does with the line floating, low and high, and give it the
+    resistor that makes floating the safe one. A board that must work with no host is in that state all the time.
+- **Play the plan's own calls through the driver into the RTL.** The bring-up's test table lists every call it will
+  make on the host. A test makes each of them, in order, through the real driver into the simulated FPGA with a model
+  of that board's tile plugged in. It proves the plan, the driver and the gateware agree before a board is there; it
+  took two minutes to run and an hour to have.
+
+## 32. Lessons from planning the op-amp board's bring-up (2026-11-15)
+
+Assembled rev A boards, one already working by hand, and the constraint of sections 30 and 31 (Jason's minutes at the
+bench).  Written before the scripts met a board.  The visits, the status table, the pictures and the rehearsal on a
+simulated bench are sections 30's and 31's and are not repeated; these are what a small analog teaching board added.
+The plan is `op-amp-pcb/BRINGUP.md`, the tool `bringup/`, the rows it produced `bringup/REVB.md`.
+
+- **Put the bench on the model before quoting a number in a handbook.**
+  - The simulated bench's board is the SPICE deck that designed the board, plus what a student hangs on it: a metre of
+    coax (100 pF) and a scope's 1 Mohm and 15 pF on the output, 50 ohm behind the generator, a meter's 10 Mohm, a x10
+    probe's 12 pF.
+  - Run against that, three sentences of the handbook turned out to be true of the bare board only: "clean edges, no
+    ringing" is 9 % of overshoot through the cable the same sentence tells the student to use; "2.2 nF leaves it
+    clean" is 30 % and two and a half cycles; "the gain is 10.1" is 9.7 to 10.6 with amplitude.
+  - **The check behind a sentence must measure what the sentence says.** The design's cable check measured the ripple
+    left 30 us after the edge (none: it does not oscillate) and the handbook wrote "clean". Overshoot and cycles of
+    ringing are the words a student would use, so they are what to compute.
+- **Enumerate every switch setting in the model; it takes a tenth of a second.** Three two-way DIP switches are 64
+  settings. The operating point of each found the one that breaks the handbook's "a rail over 10 mA is a fault" (no tail
+  with both feedback sliders on: 14.5 mA, nothing wrong), and gave the power-up ramp its current allowance at each
+  voltage for any setting the board may arrive in.
+- **Look for instability at more than one DC level.** A class-B output's loop gain is lowest inside its dead band. In
+  the model the uncompensated amplifier is quiet with the output at 0 V and oscillates at 10 V p-p with it at 3 V. A
+  stability test at rest, or a handbook exercise that says "watch it ring" without saying where the output sits, sees
+  half of it.
+- **A switch the student flips is a visit; order the visits so each changes one slider, and end where you began.** Five
+  switch changes walk through the four compensation settings worth seeing and return to the usual one. Say which
+  slider goes first where the order matters (FEEDBACK 2 off before 1 on).
+  - **Give every switch setting a signature at the jacks, or know which have none.** FEEDBACK always shows (the DC
+    gain is 1, 11 or rail to rail). TAIL shows only as a follower, in how the negative supply current follows the
+    input (2.3 mA over 16 V with the 10 k, 0.8 mA with the sink). COMPENSATION 1 and 2 look alike at a gain of 11. The
+    tool checks what shows and carries the rest in its record; a wrong record then stops a step instead of filing a
+    measurement under the wrong setting.
+- **Loads and source resistances a program can switch, with nobody there:**
+  - **The scope's 50 ohm input is a load**, where a series resistor bounds what the board can put into it (here
+    330 ohm inside the loop: 2 V at most; the input is rated 5 V rms). The output's current limit was measured this
+    way in the rehearsal. Read the voltage before switching it in, raise the drive in steps, and stop at the level
+    where a limiting board has flattened and a faulty one still follows. Back to 1 Mohm in a `finally`.
+  - **A generator output switched off leaves an input on the scope's input resistance alone**, if "off" is an open
+    circuit: at 50 ohm the amplifier's output is its true offset (no generator zero error, which is 2 to 3 mV), at
+    1 Mohm it moves by the bias current times a megohm (2 V for a BJT pair). Whether a given generator opens its
+    output is the first thing the step finds out; the plan has a second way (the drop across the series resistor, by
+    meter) if it does not.
+- **A bench supply's current readback is not a measurement at 4 mA until it is zeroed.** The E3646A's is good to
+  0.15 % + 5 mA (10 mA on output 2). Take the reading at 0 V with the output on and subtract it. Then the supply
+  current is a signature: of the board (the ramp stops at 1 V when the leads are on something else), of a switch
+  setting, of a load.
+- **A shared bench needs a record of who holds what.** lab-instrument-control has `bench_claims.py` since this
+  bring-up: a project claims an instrument channel when the person has said it is cabled to its board (with what it
+  goes to and the most that will be put on it), and calls `require()` before any command that switches an output on.
+  The tool refuses to open an instrument it does not hold. A claim is what the person said, so the ramp's signature
+  check still runs.
+- **For the meter, give a series resistor whose drop is a lesson a loop at each end.** The bias current is 2 mV
+  across the 1 k input resistor; rev A has a loop on the base side only, and the other end is a screw head.
+- **Tooling:**
+  - A Python signal handler that raises does nothing while a ctypes library (ngspice) holds the thread, and the
+    exception is swallowed if it lands in one of the library's callbacks: `timeout` did not stop a stuck simulated
+    run. Use `timeout -s KILL` on rehearsals, and install the "supply off on SIGTERM" handler for real benches only.
+  - A slow scope sweep of a circuit that rings at megahertz costs a transient simulation millions of steps. The
+    simulated scope simulates 100 us finely and samples that repeatedly; the real scope aliases it anyway.
+  - A scope trace that is flat must not be zoomed into its own noise by an autoranging loop, and a DC level can be
+    cancelled by the scope's offset only as far as that volts/div allows (SDS2104X Plus: +-2 V up to 100 mV/div,
+    +-20 V up to 1 V/div). Read DC levels in two looks, coarse then offset, and stop zooming at a floor.
+
+## 33. Lessons from powering ECP5-2ADC-2DAC board A (2026-11-16)
+
+- **An ECP5 design can build clean, meet timing, load, and still be dead: count the global clocks.**
+  - **What happened:** the bring-up design promoted nine clock nets to globals (nine DCCA). It loaded over JTAG and
+    drove its pins, yet everything clocked by the TCXO was dead: no UART reply, no PLL lock. Every build with eight
+    globals or fewer worked, whichever block was removed (nextpnr-0.11.1-83).
+  - **The fix:** `(* noglobal *)` on clock inputs that only feed frequency counters, leaving five globals
+    (ECP5-2ADC-2DAC REVB 16).
+  - **How it was found, in order:**
+    1. an echo bitstream (`assign uart_tx = uart_rx`) proves the USB-UART path both ways;
+    2. a minimal UART and register-bus design proves the clock and the bus;
+    3. then bisection: drop blocks from the full design until it answers.
+  - **The rule:** keep the bring-up design's global count low, and keep an echo and a minimal design beside the full
+    one. Simulation and co-simulation passed this design every time. Only "load it and read the ID on the board"
+    shows this class of fault.
+
+- **Write rework as "remove the whole part, wire to ONE named pad", never "lift one end".** Jason (2026-11-16): "Try
+  not to tell me to lift something off of one pad. When I use a hot air gun and tweezers, the whole thing comes off."
+  - **What happened:** the step "lift FB6241's +1V8 end and wire it to +3V3" went wrong.
+    - The whole bead came off and was lost.
+    - The wire then went onto both empty pads, since a bead "has the same DC voltage on both sides".
+    - That tied +3V3 to the FT2232H's 1.8 V core net, whose absolute maximum is 2.0 V, and the board was powered.
+  - **The bead's two pads are on two different nets.** The fix changes which net one of them is on, and a written step
+    must say so.
+  - **Every rework step names:**
+    - the part to remove whole;
+    - the one pad the wire goes to, by its net and by its neighbour ("the LEFT pad, toward C6241: VPHY");
+    - the pad that must stay bare, with Kapton over it;
+    - a meter check before power: about 0 ohm to where the wire should reach, and not about 0 ohm to the bare pad.
+  - **The figure:** mark the bare pad with a red X, not just a circle. Small joints are iron work.
+
+- **Print a test header's names next to the pins they name.** J602 (RAILS, 2 x 9) has its rail names printed above
+  the header, beside the top row, and the top row is ground; the rails are on the bottom row. The first meter walk
+  went where the names pointed, and every pin read -2.507 V (ground against +2V5). Put the signal row next to the
+  names and ground on the far row, and print "GND" by the ground row too. A note on the silkscreen elsewhere ("top
+  row = GND") does not undo what the names' position says.
+- **Budget the bench input from the supply's terminals to the rail, at full load.** ECP5-2ADC-2DAC's J601 is a 0.1"
+  2-pin header, then an SS34 and a PTC: 5.00 V at the supply was 4.52 V at J601 through a BNC cable and thin wire,
+  and 4.22 V on +5V, at 0.385 A with the FPGA unconfigured. Configured, it draws nearly twice that. Give a bench
+  input a connector that takes real leads (a screw terminal, a barrel jack), an ideal-diode FET rather than a
+  Schottky where the drop matters, and a rail window that the board's own drop fits inside. Tell the person at the
+  bench to use short, thick leads straight to the input.
+- **A board with switching regulators draws less current as its input rises.** Once the bucks regulate, they draw
+  about constant power (board A: 0.388 A at 4.0 V, 0.369 A at 5.0 V). A staircase check must test the power (V x I)
+  for "rising with the voltage", not the current.
+- **A rule that ends a probe walk early must not fire on the first odd reading.** "A negative reading is -4V2, the
+  last pin, so the walk is over" ended a walk after 9 s on a wrongly placed probe. End only after most of the walk
+  has been read, or after the probe has been lifted for a while.
+- **A photo cannot show whether a header has a shunt on it.** In a slanted photo, a bare 2-pin header's posts look
+  like a shunt. Board A's JP501 was reported as shunted and had none. From photos, call a jumper "can't tell: check
+  by eye", and never ask for one to be removed on a photo alone. Polarity marks and chip pin-1 dots lie flat and can
+  be read; posts, shunts and anything else that stands up cannot.
+- **USB PROG was dead on arrival.** The FT2232H's VPHY and VPLL were on 1.8 V, not 3.3 V, and its D+ and D- were
+  swapped. Both are now the block at the top of this file and gate 2a-2c of section 10: scripts that fail the build,
+  and checks every review brief asks reviewers to redo from the data sheets.
+- **The first USB plug-in tells a silent device from a broken one.** A device whose pull-up is up but whose lines are
+  swapped still makes the host log an attach and then enumeration errors. Nothing at all in the kernel log, on any
+  port, means no pull-up: no PHY supply, no clock, held in reset, or a cable with no data wires. Read the kernel log
+  (`journalctl -k -f`) while the cable goes in.
+- **A test runs where its part is in specification, and the plan names the supply it runs from.** A pin audit found
+  three motor and coil drivers below their minimum supply on USB alone (a Schottky's drop from 5 V). The bring-up's
+  tests of those tiles had been written for USB alone too, so a pass or a fail would have said nothing. Write each
+  test's supply into the test (here a second supply output on the barrel jack, set by the tool only for that test and
+  returned to 0 V), and read the rails again with every tile on, where a shared inverter is loaded hardest.
+- **A board can measure its own analog chain, and found the slewing stage that way** (2026-11-16 night, the tutorial's
+  `ets.sv`).  Every sample clock is an FPGA output, so the PLL's dynamic phase shift (0.25 ns steps at a 500 MHz VCO)
+  moves the ADCs' sampling instant against a repeating DAC waveform: DAC -> cable -> ADC at an effective 4 GS/s, both
+  channels at once (0.02 ns apart), with no scope.  The same night a lock box through the cable measured the loop's
+  delay (14.2 samples) from its oscillation and matched 1/|1+L| within 0.1 dB.  Keep sample clocks on FPGA outputs
+  that a PLL can drive, and plan bring-up tests that use the board on itself before the bench instruments.
+- **A bring-up plan's visits depend on other boards' bring-ups: let them wait, not block.** The host board's own USB
+  port turned out dead the day the plan was finished. The tool marks a visit as waiting while its configuration leaves
+  one of its instruments unassigned, says what waits for what, and always offers the next visit that can run.
