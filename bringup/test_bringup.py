@@ -113,6 +113,34 @@ def test_rails_ripple_and_a_missing_rail_fail(tmp_path):
         assert any('+5V_GPIB' in w for w in bad) and any('ripple' in w for w in bad)
 
 
+GOOD_METER = dict(TP1=5.159, TP1off=5.202, TP2=3.308, TP3=1.097, TP4=5.144, TP4off=0.0)    # A1, 2026-11-18
+
+
+def test_meter_readings(tmp_path):
+    b, ctx = make(tmp_path, [dict(label='A1', cabled=False), dict(label='L1', lite=True, cabled=False)])
+    with b:
+        rec = S.step_meter(ctx, 'A1', GOOD_METER, ripple_mvpp=48.3)
+        assert rec['ok'], failed(rec)
+        assert rec['rails']['+5V_GPIB'] == {'V': 5.144, 'off_V': 0.0} and rec['rails']['VBUS']['V'] == 5.159
+        assert ctx.state['boards']['SIMA1']['stages']['rails']['ok']
+        rec = S.step_meter(ctx, 'L1', dict(TP1=5.1, TP2=3.3, TP3off=1.1))      # the Lite has no TP4
+        assert rec['ok'], failed(rec)
+        assert any('ripple not measured' in n for n in rec['notes'])
+        with pytest.raises(S.StepFailed, match='TP4'):
+            S.step_meter(ctx, 'L1', dict(TP1=5.1, TP2=3.3, TP3=1.1, TP4=5.1))
+
+
+def test_meter_catches_q1_a_rail_and_a_missing_reading(tmp_path):
+    b, ctx = make(tmp_path, [dict(label='A1', cabled=False)])
+    with b:
+        rec = S.step_meter(ctx, 'A1', dict(GOOD_METER, TP4off=4.9, TP2=3.05), ripple_mvpp=75.0)
+        bad = failed(rec)
+        assert any('falls' in w for w in bad) and any('+3V3' in w for w in bad) and any('ripple' in w for w in bad)
+        rec = S.step_meter(ctx, 'A1', {k: v for k, v in GOOD_METER.items() if k != 'TP4'})   # only bus off
+        assert any('+5V_GPIB at TP4' in w for w in failed(rec))
+        assert not ctx.state['boards']['SIMA1']['stages']['rails']['ok']
+
+
 # ---- stage 2b ----------------------------------------------------------------------------------------------
 PARKED = dict(manual=True)
 

@@ -23,7 +23,7 @@ IEEE488_Plug_24P_P2.16mm_DIP_Solder
     drawn on the back silkscreen and the fab layer, and the top silkscreen
     marks contacts 1, 12 and 13 (24 is under 12; there is no room for its
     label).  Nothing stops it mechanically: HANDBOOK.md step 5 is the check, a
-    meter on contact 24 after two pins are tacked.
+    meter after two pins are tacked (contacts 1 and 23).
 
     Dimensions: the pin pattern from NorComp's drawing (rev 15, 2025: the
     recommended layout, 2.16 mm pitch, rows 4.29 mm apart, 1.00 mm holes); the

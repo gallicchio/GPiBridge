@@ -22,7 +22,9 @@ need no board: they are made as they are found and listed in section 2.
   own ground, named in silk, left unpopulated in a production run. The board has room
   along its bottom edge, left of the LEDs, once BOOT moves up.
 - **State:** rev B. Rev A works round it: one probe held on each pad until the scope
-  beeps (`run.py rails`).
+  beeps (`run.py rails`). On A1 (2026-11-18) the ground clip would not stay on J1's
+  shell either; a hand meter read the four rails (`run.py meter`), and a probe held on
+  TP3 alone gave the ripple.
 
 ### 1.2 The board cannot measure itself
 - **Found:** the same evening: `bare` can check everything on a board except its rails
@@ -46,7 +48,25 @@ need no board: they are made as they are found and listed in section 2.
   could add a 1 mm witness hole in the board beside contact 1 that the plug's moulded
   "1" shows through, if NorComp's moulding allows; to be looked at with a real plug.
 - **State:** open. Rev A: the meter check after two pins (`BRINGUP.md` stage 2), and
-  the two-board walk names it (`run.py pair`).
+  the two-board walk names it (`run.py pair`). The check first read "contact 24 at the
+  plug's face, where the numbers are moulded", but nobody had seen numbers on NorComp's
+  plug. Since 2026-11-18 it needs none: tack contacts 1 and 23, then at the D's USB-C
+  end the second contact in on the narrow side beeps to ground and the second on the
+  wide side does not; turned round, the two swap. (Contact 24 would not do: its hole's
+  partner when turned is contact 12's, also ground.)
+
+### 1.6 The housing's base cannot be fitted after the plug is soldered
+- **Found:** 2026-11-18, Jason asking why stage 2 needed a printed base.
+- **What:** the base's plate lies between the plug's flange and the board, and the
+  flange (54.7 x 15.3 mm) is bigger than the plate's opening (33.3 x 14.9 mm). The plug
+  sets its own height (flange 3.50 mm above its standoff, the plate's thickness), so the
+  base is not needed as a jig; but a board soldered bare can never be housed, and
+  soldering waits for a print.
+- **Change:** a base in two halves, split across the opening and joined by the lid's
+  screws, would go on afterwards. To be weighed against the plate's strength (it
+  carries the pull when the adapter is unplugged).
+- **State:** rev B idea. Rev A: a board meant for a housing waits for a printed base;
+  one kept bare as the bench board (A1, if Jason chooses) can be soldered now.
 
 ### 1.4 A second controller cannot be seen by the SN75161B while it is one itself
 - **Found:** simulation, 2026-11-15: two boards on one cable, both started by USB, drove
@@ -65,7 +85,8 @@ need no board: they are made as they are found and listed in section 2.
   drawing's 1.572 mm offset. Rev A's boards were moved by hand in the preview: look at
   J1 on each (`BRINGUP.md` stage 0).
 - **L1** (Response 11): rev A carries TDK's unpolarised VLS201612HBX-3R3M-1, not the
-  Abracon AOTA of the design. Stage 1b measures whether it matters.
+  Abracon AOTA of the design. On A1 it does not matter: +1V1's ripple is 2.5 mV rms,
+  the same with the transceivers on or off (section 3).
 - **The housing's screws** are M2 x 8, not M2 x 10 (Response 9).
 
 ## 2. Firmware, changed before the first board (0.3.0 to 0.4.0, 2026-11-15)
@@ -165,6 +186,19 @@ the fix.
 - **`++t info`** adds the watchdog's load and rate and the reason for the last start
   (`wd_load`, `wd_per_ms`, `boot_reason`, `boot_scratch4`); `++t crash` hangs on purpose.
 
+### 2.11 Stage 1b by hand (2026-11-18)
+- **The plan's meter fallback said "read the four points with the green LED lit"**, but
+  every step leaves a board parked, LED off. TP4 read 0 V, which looked like a fault
+  and was the design. `BRINGUP.md` stage 1b now says what parked reads, and Claude
+  lights the LED before the bus-on readings.
+- **`run.py meter A1 TP1=... TP4off=...`** records a meter's readings as stage 1b,
+  against the same windows as `run.py rails` (tested: a stuck Q1, a low rail, a
+  missing bus-on reading).
+- **`bench.Probe` never set the scope's input impedance.** The SDS2104X Plus had
+  channel 1 at 50 Ω; a x10 probe into 50 Ω reads almost nothing. It now sets 1 MΩ
+  every time. The one-off script that took A1's ripple put the 50 Ω back when it
+  restored the scope, though Jason had asked for it off; set to 1 MΩ by hand after.
+
 ### 2.7 New commands, for the bring-up and after
 `++t info`, `++t lines`, `++t selftest`, `++t raw ...`, `++t identify`,
 `++t autostart`, `++t power 2`. `HANDBOOK.md` section 2 lists them.
@@ -174,13 +208,14 @@ the fix.
 | question | where it is answered | answer |
 |---|---|---|
 | Which stepping are the RP2354As (A2 has erratum E9)? | stage 1, `chip_rev` | A1: **A4** by picotool (the SDK's `rp2350_chip_version()` reads 3). No E9 |
-| What does the temperature sensor's raw count say the 3.3 V rail is? | stage 1 | A1: 860-866, about 3.24 V at an assumed 40 C die |
+| What does the temperature sensor's raw count say the 3.3 V rail is? | stage 1 | A1: 860-866, about 3.24 V at an assumed 40 C die. A meter reads 3.308 V, so the die was nearer 32 C |
 | How far is the crystal from 12 MHz? | stage 1 | A1: +1.4 to +1.8 ppm against `bell`'s clock |
 | How long from reset to USB configured? | stage 1, `usb_ready_ms` | A1: 940 ms through a hub three levels deep (expected 150-300); to measure on a port of the PC itself |
 | Does `picotool reboot -f -u` reach the reset interface (the udev rule)? | stage 1 | not yet: the rule is not installed. BOOTSEL itself works without it (plugdev) |
 | Does the failsafe work: three hangs land in BOOTSEL? | `run.py failsafe` | A1: yes, each hang caught at 2.03 s |
-| Is +5V_GPIB above 4.75 V on this cable and port, bus on? | stage 1b | |
-| The ripple on +1V1 with the substituted L1, bus off and on | stage 1b | |
+| Is +5V_GPIB above 4.75 V on this cable and port, bus on? | stage 1b | A1: **yes, 5.144 V**, with VBUS 5.159 V through a hub three levels deep (5.202 V with the bus off). Q1 drops 15 mV |
+| The ripple on +1V1 with the substituted L1, bus off and on | stage 1b | A1: 2.5 mV rms on and off; at most 48 mV pp (hand-held probe, full bandwidth), against 60. DC 1.10-1.11 V |
+| Does R21 back-power +5V_GPIB through the SN75161B's DC input with the bus off (`PIN_AUDIT.md`)? | stage 1b, TP4 bus off | A1: **no**, 0 V on a meter |
 | How fast does +5V_GPIB fall when Q1 opens (firmware waits 3 ms)? | stage 1b, the scope on TP4 | |
 | The board's current, idle and with the bus on (the descriptor asks for 300 mA) | an inline USB meter, if one is at hand | |
 | Does a free bus read as free (section 2.4)? | stages 1, 4 | |

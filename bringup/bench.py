@@ -77,11 +77,15 @@ class Probe:
         self.mode = None
 
     def _set(self, mode, tdiv):
+        # 1 MOhm always: a x10 probe into a 50 ohm input reads almost nothing (the bench's
+        # SDS2104X Plus had channel 1 at 50 ohm on 2026-11-18)
         if mode != self.mode:
             if mode == 'dc':                       # -1.5 to +6.5 V on the screen: every rail, and ground
-                self.s.channel(self.ch, on=True, probe=self.att, coupling='DC', scale=1.0, offset=-2.5, bwlimit='20M')
+                self.s.channel(self.ch, on=True, probe=self.att, impedance='1M', coupling='DC', scale=1.0,
+                               offset=-2.5, bwlimit='20M')
             else:                                  # the ripple: +-80 mV about the rail
-                self.s.channel(self.ch, on=True, probe=self.att, coupling='AC', scale=0.02, offset=0.0, bwlimit='FULL')
+                self.s.channel(self.ch, on=True, probe=self.att, impedance='1M', coupling='AC', scale=0.02,
+                               offset=0.0, bwlimit='FULL')
             self.s.trigger(source=self.ch, level=0.0 if mode == 'ac' else 2.0, slope='rising', mode='auto')
             self.mode = mode
         self.s.timebase(scale=tdiv, delay=0)

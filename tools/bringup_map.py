@@ -56,7 +56,8 @@ def spots():
         ("ERR LED, red: a bus error in the last second; yellow and red turn about: \"this one\"", at("D3")),
         ("BOOT: never needed (a paperclip through the lid, if all else fails)", at("SW1")),
         ("contact 1 (DIO1): the hole marked 1.  Tack this pin first", contact(1)),
-        ("contact 24 (ground): the hole under 12.  Tack it second; it must read 0 ohms to TP5", contact(24)),
+        ("contact 23 (ground): near row, 2nd from the USB-C end.  Tack it second, then check (BRINGUP.md)",
+         contact(23)),
         ("contact 12 (shield)", contact(12)),
         ("contact 13 (DIO5)", contact(13)),
     ]

@@ -167,26 +167,57 @@ TP4 from TP1 by switching the bus off for a moment: TP4 falls, TP1 does not.
 **Passes when:** +1V1 1.05-1.15 V with at most 60 mV pp of ripple, +3V3 3.20-3.40 V,
 VBUS 4.4-5.3 V, +5V_GPIB 4.75-5.25 V with the bus on and under 1 V with it off.
 
-**If you have only a hand meter:** read the four points with the green LED lit and type
-the numbers into the chat.
+**With a hand meter instead** (as A1 was, 2026-11-18: the ground clip would not stay on
+J1's shell):
+1. Black lead on **J1's metal shell**. Read **TP1, TP2, TP3, TP4** as the board is:
+   parked, so the green LED is off and **TP4 reads 0 V**. That is right: parking switches
+   the bus off, and with it the transceivers' 5 V.
+2. Say so. Claude lights the green LED (`run.py ask A1 "++t power 1"`).
+3. Read **TP4** again, then **TP1**, and type all six numbers into the chat. Claude
+   records them (`run.py meter A1 TP1=... TP1off=... ...`) and parks the board.
+
+A meter cannot see the +1V1 ripple. To answer that too, hold a x10 probe on **TP3** for
+about 20 s while Claude records it (A1: channel 1 of the SDS2104X Plus, 1 MΩ).
 
 ## Stage 2: the plug (you, 15 minutes: the only soldering)
 
-`HANDBOOK.md` section 1, step 5, and `enclosure/README.md`, have the detail. In short:
+`HANDBOOK.md` section 1, step 5, and `enclosure/README.md`, have the detail.
+
+**With or without the base.** The plug sets its own height: its standoff plate sits on
+the board, and its flange is 3.50 mm above that, exactly the base's plate. So the base is
+not a soldering jig. But the plate goes *between* the flange and the board, and the
+flange (54.7 x 15.3 mm) is far bigger than the base's opening (33.3 x 14.9 mm): once the
+plug is soldered, a base can never be fitted. So:
+- a board that is to be **housed** is soldered with the plug pushed through a printed
+  base;
+- a board that is to stay **bare**, the bench board (A1), can be soldered now.
+
+In short:
 
 1. Unplug the USB.
-2. Push the plug through the housing's **base**, lay the board on it, top side up, and
-   press the board down until it rests on the plug's standoff: the pins grip the holes.
-   (No base yet? Then solder this board's plug bare and keep A1 as the bench board: a
-   board whose plug is already soldered cannot go into the base. A2 waits for the
-   housing.)
-3. **Solder two pins only**: the one in the hole marked **1** (13 in the picture), and
-   the one in the hole **under "12"** (14: contact 24).
-4. With the meter, at the plug's face where the contact numbers are moulded: **contact
-   24 to TP5 "GND" (8), or to J1's shell: 0 ohms. Contact 1: not 0 ohms.** If it is the
-   other way round the plug is turned: take it out now, while it is two joints.
-5. Solder the other 22.
-6. USB back into `bell`. Say "A1 has its plug".
+2. **Which way round.** Board top side up, USB-C to your left, LEDs toward you. The plug
+   goes underneath, its D-shell pointing down, with the **D's wide side away from you**:
+   under the row of holes with **"1"** printed at its end. The narrow side is toward the
+   LEDs. (With a base: push the plug through it from the front first, its wide side
+   toward the base's engraved "D wide side this way".)
+3. Push the pins up through the holes and press the board down until the plug's flat
+   standoff plate is tight against its underside, the whole length: no gap to see from
+   the side. The pins' shoulders grip the holes, so it stays.
+4. **Solder two pins only** (13 and 14 in the picture):
+   - the one in the hole marked **1**;
+   - in the row nearer the LEDs, the **second hole from the USB-C end** (contact 23,
+     ground: it is on the copper pour, so give it more heat).
+5. **Check with the meter, on beep.** One lead on **J1's shell** (or TP5 "GND"). At the
+   plug's face, at the D's USB-C end:
+   - the **second contact in along the narrow side must beep**;
+   - the **second contact in along the wide side must not**.
+
+   The other way round, the plug is turned: unsolder the two pins now. (This needs no
+   numbers on the plug: turned round, the joint you made is on the wide side's contact.)
+6. Solder the other 22. The eight ground pins take longer: in the near row, the seven
+   from the USB-C end; in the far row, the one marked "12". Look along each row for
+   bridges; the pitch is 2.16 mm.
+7. USB back into `bell`. Say "A1 has its plug".
 
 **Claude:** `run.py plug A1`: the self-test again, now with the plug's joints on the
 lines. A bridge from a contact to ground or to a driven neighbour shows as a line read
@@ -277,7 +308,8 @@ Everything this bring-up ever connects, in one table. Nothing else is touched.
 | `bell` (USB port, or a powered hub's) | USB-A or USB-C | **J1**, the board's USB-C | always | 5 V, 300 mA |
 | scope (SDS1104X-E, or SDS2104X Plus) | **channel 1**, x10 probe tip | **TP3, TP2, TP1, TP4** by hand, in any order | stage 1b | 5.3 V |
 | the same probe | its ground clip | **J1's metal shell** | stage 1b | ground |
-| hand meter | probes | plug **contact 24** and **TP5** (then contact 1 and TP5) | stage 2 | ohms |
+| hand meter | probes | **TP1-TP4** and **J1's shell** | stage 1b, without a scope | 5.3 V |
+| hand meter, on beep | probes | at the plug's USB-C end, the **second contact in** on each side of the D, and **J1's shell** | stage 2 | ohms |
 | second board (A2 or L1) | its plug | the other end of the **GPIB cable** | stage 2b | the bus |
 | Prologix GPIB-USB | its plug; its USB | the **GPIB cable**; `bell` | stage 3 | the bus |
 | HP 33120A | rear **GPIB** socket | the board's plug | stage 4 | the bus |

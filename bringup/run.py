@@ -9,6 +9,10 @@
     python3 bringup/run.py failsafe [BOARD] stage 1: three hangs in a row must land in BOOTSEL (not simulated)
     python3 bringup/run.py rails BOARD --scope sds1104 [--channel 1]
                                             stage 1b: one scope probe touched to TP1-TP4 in any order
+    python3 bringup/run.py meter BOARD TP1=5.159 TP2=3.308 TP3=1.097 TP4=5.144 TP4off=0 [ripple=48.3]
+                                            stage 1b with a hand meter: the numbers typed in, checked
+                                            (TPn: bus on, green LED lit; TPnoff: bus off; ripple: mV pp
+                                            on +1V1 from a scope, if one was used; --note TEXT)
     python3 bringup/run.py plug [BOARD]     stage 2: the plug soldered, nothing plugged into it
     python3 bringup/run.py pair X Y         stage 2b: two boards on one GPIB cable, every line both ways
     python3 bringup/run.py prologix [BOARD] stage 3: the bench Prologix as a device on the same cable (not simulated)
@@ -113,6 +117,7 @@ def main(argv):
     ap.add_argument('--scope', default='sds1104', help='rails: sds1104[:usb|:SERIAL|:IP] or sds2104[:IP|:usb]')
     ap.add_argument('--channel', type=int, default=1, help='rails: the scope channel the probe is on')
     ap.add_argument('--address', type=int, default=10, help='gen: the 33120A\'s GPIB address')
+    ap.add_argument('--note', action='append', default=[], help='meter: a line for the record')
     o = ap.parse_args(argv)
 
     if o.step == 'build':
@@ -179,6 +184,17 @@ def main(argv):
                 return report(S.step_rails(ctx, label, probe))
             finally:
                 probe.close()
+        if o.step == 'meter':
+            label = next((x for x in a if '=' not in x), None)
+            readings, ripple = {}, None
+            for x in a:
+                if '=' in x:
+                    k, _, v = x.partition('=')
+                    if k == 'ripple':
+                        ripple = float(v)
+                    else:
+                        readings[k] = float(v)
+            return report(S.step_meter(ctx, label, readings, ripple, o.note))
         if o.step in ('identify', 'unpark', 'ask'):
             label = a[0] if a else None
             with ctx.open(label) as ad:

@@ -68,10 +68,17 @@ UsbGpib):
 3. Lay the board into the base, with the plug's 24 pins up through it, and press it
    down until it rests on the plug's standoff plate. The pins are 1.0 mm wide for their
    first 0.5 mm (NorComp's 3D model), so they grip the 1.00 mm holes. Solder two
-   first, in the holes marked "1" and under "12", and measure at the plug's face:
-   contact 24 reads 0 ohms to GND (TP5) and contact 1 does not. The pins fit either way
-   round; turned round, the readings swap (`HANDBOOK.md`, step 5). Then solder the rest
-   from the top.
+   first: the one in the hole marked "1", and in the row nearer the LEDs the second
+   from the USB-C end (contact 23, ground). Then, on a meter's beep range against GND
+   (TP5), at the plug's face at the USB-C end, the second contact in along the D's
+   narrow side beeps and the second along its wide side does not. The pins fit either
+   way round; turned round, the readings swap (`HANDBOOK.md`, step 5). Then solder the
+   rest from the top.
+
+The base cannot be added afterwards: its plate lies between the flange and the board,
+and the flange (54.7 x 15.3 mm) is bigger than the opening (33.3 x 14.9 mm). The plug's
+own standoff sets its height (its flange is 3.50 mm above the board, the plate's
+thickness), so a board meant to stay bare is soldered without one.
 4. Put the lid on, and drive the two screws in.
 
 To take it out of an instrument, pull on the housing. The plug's flange cannot be

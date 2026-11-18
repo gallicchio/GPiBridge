@@ -1450,3 +1450,117 @@ Commits in this repository:
 In lab-instrument-control, one commit holds only this project's files (`scpi_link.py`,
 `test_scpi_link.py`, `gpib/gpib.md`), which teach `Link` to use a GPiBridge.
 `bench_claims.py` and the other sessions' changes there are left as they were.
+
+## Prompt 16
+
+I cannot clip the scope on easily. With a multimeter, though, I get the following with
+respect to the USB connector's shell: Vbus = 5.202, 1V1 = 1.097, 5V = 0 (why? I did this
+several times), 3V3 = 3.308
+
+## Response 16 2026-11-18 Claude Opus 5.5
+
+*No instrument was touched. A1's bus was switched on for the reading.*
+
+**Where we are:** A1's bus is on (green LED lit), so TP4 has its 5 V. Read **TP4** with
+the meter's black lead on J1's shell (4.75-5.25 V expected), then **TP1** again, and send
+both. Leaving it on with nothing in the plug does no harm.
+
+**Why TP4 read 0 V:** A1 is parked, and parking switches the bus off, which opens Q1 and
+cuts the transceivers' 5 V. That is the design working, and it also settles
+`PIN_AUDIT.md`'s one open question: R21 does not feed +5V_GPIB through the SN75161B
+while the bus is off.
+
+| test point | read | allowed |
+|---|---|---|
+| TP3 "1V1" | 1.097 V | 1.05-1.15 V |
+| TP2 "3V3" | 3.308 V | 3.20-3.40 V |
+| TP1 "VBUS" | 5.202 V | 4.40-5.30 V |
+| TP4 "5V", bus off | 0 V | under 1 V |
+
+Stage 1's 3.24 V from the temperature sensor assumed a 40 °C die; 3.308 V means it was
+about 32 °C. A meter cannot see the +1V1 ripple, the one check for the substituted L1.
+
+## Prompt 17
+
+A green LED came on. Now 5V reads 5.144 V on the multimeter. VBUS is 5.159 V. A few
+seconds after I hit enter, I'll hold channel 1 of the SDS2104X scope on 1V1. Check that
+it's set to 10x and that the 50 ohm terminators are off. If you need to "take" it from
+another agent, do that. No other agents are using the scope. Let me know in **bold** when
+I can let go.
+
+## Response 17 2026-11-18 11:36 Claude Opus 5.5
+
+*SDS2104X:1 claimed, used, released. Channel 4 (claimed by ECP5-2ADC-2DAC) untouched.*
+
+**You can let go now.**
+
+**Where we are:** A1's rails all pass, by meter and by scope; its bus is off again
+(parked). Next for A1 is stage 2, the plug.
+
++1V1 on channel 1 (x10, 1 MΩ), one record at each setting:
+
+| | bus on | bus off | limit |
+|---|---|---|---|
+| DC | 1.107 V | 1.100 V | 1.05-1.15 V |
+| ripple, 200 ns/div | 14.8 mV pp | 12.5 mV pp | 60 mV pp |
+| ripple, 20 µs/div | 44.3 mV pp, 2.5 mV rms | 45.3 mV pp, 2.5 mV rms | 60 mV pp |
+| ripple, 1 ms/div | 48.3 mV pp, 2.6 mV rms | 46.3 mV pp, 2.5 mV rms | 60 mV pp |
+
+The ripple is the same with the transceivers on or off: the substituted inductor does its
+job. The meter's bus-on readings pass too: TP4 5.144 V (4.75-5.25), VBUS 5.159 V, so Q1
+drops 15 mV and this hub leaves about 0.4 V of margin.
+
+The scope: channel 1 was at **50 Ω** when I found it. My script restored it to 50 Ω
+afterwards, which was wrong given what you asked; I then set it to **1 MΩ** (x10, the rest
+as found). The trigger was on C4 and stayed on C1: the scope would not take C4 back while
+C4 is off. Channel 2 is on at 50 Ω and x1, left alone in case someone's coax is on it.
+
+## Prompt 18
+
+Record them and commit. Why do I need the case to solder and test the connector? Give me
+instructions for that.
+
+## Response 18 2026-11-18 11:50 Claude Opus 5.5
+
+*Committed, not pushed. No instrument was touched.*
+
+**Where we are:** A1 has passed stages 1 and 1b and is parked. Next is stage 2, the plug.
+Decide first whether A1 is to be housed or to stay bare as the bench board.
+
+**Why the base:** not for the plug's height. The plug sets that itself: its flange is
+3.50 mm above its standoff plate, exactly the base's plate. The reason is that the base's
+plate goes *between* the plug's flange and the board, and the flange (54.7 x 15.3 mm) is
+far bigger than the plate's opening (33.3 x 14.9 mm). Once the plug is soldered, a base
+can never be fitted. Testing needs no base at all. A1 kept bare is the better bench board
+anyway (test points, SWD and UART in reach); A2 and the Lites would go in housings.
+(Partway through checking this I wrote that the base was not needed; that was wrong.)
+
+The instructions, now `BRINGUP.md` stage 2 (and `HANDBOOK.md` step 5,
+`enclosure/README.md`):
+1. Unplug A1's USB-C.
+2. Board top side up, USB-C to your left, LEDs toward you. The plug goes underneath, D
+   pointing down, **its wide side away from you**: under the row with "1" at its end.
+3. Push the pins up through the holes and press the board down until the plug's flat
+   standoff plate is tight against its underside the whole length.
+4. Solder two pins: the hole marked **1**, and in the row nearer the LEDs the **second
+   hole from the USB-C end** (contact 23; ground, so more heat). 13 and 14 in
+   `docs/images/bringup_map.png`.
+5. Meter on beep, one lead on J1's shell (it is GND directly). At the plug's face, at the
+   D's USB-C end: the second contact in along the **narrow** side must **beep**; the
+   second along the **wide** side must **not**. The other way round, the plug is turned:
+   unsolder both now. This needs no moulded numbers: turned round, the joint in the
+   ground hole is on the wide side's contact.
+6. Solder the other 22. The eight ground pins need more heat: in the near row the seven
+   from the USB-C end; in the far row the one marked "12". Look for bridges (2.16 mm).
+7. USB-C back into `bell`; say "A1 has its plug". Claude runs `run.py plug A1`. The real
+   test of every joint is stage 4, the 33120A.
+
+The old check ("contact 24 where the numbers are moulded") assumed numbers nobody had
+seen on the plug; by position alone it could not tell, because contact 12's hole is
+ground too.
+
+Recorded: `run.py meter` (new: typed meter readings checked against `rails`' limits)
+wrote `results/2026-11-18/114540_rails_A1.json`, with the scope's numbers in
+`113626_scope_1V1_A1.json`; `BRINGUP_LOG.md`, `STATUS.md`, `REVB.md` (open questions
+answered; 1.3, new 1.6 and 2.11). `bench.Probe` now always sets 1 MΩ. Lessons in
+`~/OpticsPCBs/CLAUDE_PCB.md` section 9 (not committed there).

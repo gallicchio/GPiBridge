@@ -632,6 +632,55 @@ def step_rails(ctx, label, probe, patience=300.0):
     return ctx.save(rec, 'rails')
 
 
+def step_meter(ctx, label, readings, ripple_mvpp=None, notes=()):
+    """Stage 1b with a hand meter instead of a scope: the numbers a person read off it
+    (black lead on J1's shell or TP5), checked against the same windows as `rails`.
+
+    readings: {'TP1': 5.159, 'TP4': 5.144, 'TP4off': 0.0, ...}, in volts.  A plain name
+    is a reading with the bus on (the green LED lit: `run.py ask A1 "++t power 1"` first,
+    since every step leaves a board parked with it off); a name ending in 'off' is one
+    with the bus off.  TP1-TP3 hardly move with the bus, so either serves for their
+    window; the bus-on one is used when both are there.  TP4 needs both: +5V_GPIB in its
+    window with the bus on, and under 1 V with it off (Q1 opens; nothing back-powers it).
+    A meter cannot see the ripple on +1V1, which is the question about rev A's
+    substituted L1: ripple_mvpp is a scope's figure if one was taken, else the record
+    says the question is still open."""
+    label, b = ctx.pick(label)
+    lite = 'Lite' in b['kind']
+    tps = {tp: rail for rail, (tp, _, _) in E.RAILS.items() if not (lite and rail == '+5V_GPIB')}
+    bad = [k for k in readings if k.removesuffix('off') not in tps]
+    if bad:
+        raise StepFailed(f'not a test point of {label}: {", ".join(bad)} (it has {", ".join(sorted(tps))}, '
+                         'and each with "off" for a reading with the bus off)')
+    rec = Rec('rails', label, bool(ctx.sim))
+    rec['method'] = 'hand meter'
+    got = rec['rails'] = {}
+    for tp, rail in sorted(tps.items()):
+        on, off = readings.get(tp), readings.get(tp + 'off')
+        entry = got[rail] = {}
+        if on is not None:
+            entry['V'] = on
+        if off is not None:
+            entry['off_V'] = off
+        _, lo, hi = E.RAILS[rail]
+        v = on if (on is not None or rail == '+5V_GPIB') else off
+        rec.check(f'{rail} at {tp}' + (', bus on' if rail == '+5V_GPIB' else ''),
+                  v is not None and lo <= v <= hi, v, f'{lo}..{hi} V')
+    if '+5V_GPIB' in got:
+        off = got['+5V_GPIB'].get('off_V')
+        rec.check('+5V_GPIB falls when the bus is switched off (Q1 opens)', off is not None and off < 1.0, off,
+                  'under 1 V')
+    if ripple_mvpp is not None:
+        got['+1V1']['ripple_mVpp'] = ripple_mvpp
+        rec.check('+1V1 ripple (a scope\'s figure, rev A\'s substituted L1)', ripple_mvpp <= E.RIPPLE_1V1_MVPP,
+                  ripple_mvpp, f'at most {E.RIPPLE_1V1_MVPP:.0f} mV pp')
+    else:
+        rec.note('+1V1 ripple not measured (a meter cannot): the question about the substituted L1 stays open')
+    for n in notes:
+        rec.note(n)
+    return ctx.save(rec, 'rails')
+
+
 # ---- stage 2: the plug soldered ---------------------------------------------------------------------------
 def step_plug(ctx, label=None):
     """After the plug is soldered, with nothing plugged into it: the self-test again.  A
@@ -724,8 +773,9 @@ def diagnose_pair(faults, label_x, label_y):
     turned = {'DIO1', 'DIO2', 'DIO3', 'DIO4', 'DIO5', 'EOI', 'DAV', 'NRFD'}
     if len(stuck & turned) >= 6:
         out.append('Most of DIO1-5, EOI, DAV and NRFD read asserted with nothing driving them: that is the mark of '
-                   'a plug soldered in TURNED ROUND (its ground contacts sit on those lines). Check contact 24 '
-                   'for 0 ohms to GND on each board (HANDBOOK.md section 1, step 5).')
+                   'a plug soldered in TURNED ROUND (its ground contacts sit on those lines). On each board, the '
+                   'contacts on the D\'s narrow side should be the ones that read 0 ohms to GND, seven of them from '
+                   'the USB-C end (HANDBOOK.md section 1, step 5).')
         return out                                 # everything else the walk saw follows from that
     elif stuck:
         out.append(f'Asserted with nothing driving them: {" ".join(sorted(stuck))} (a short to ground at a plug, or '
@@ -1003,9 +1053,13 @@ def next_steps(ctx, boards, present):
         elif not ok('failsafe'):
             out.append(f'- **{lab}**: stage 1 passed; Claude runs `failsafe {lab}` (20 s, nothing for you).')
         elif not ok('plug'):
-            out.append(f'- **{lab}**: stage 1 passed. Next is yours: (optional, 3 minutes) the rails with one scope '
-                       f'probe, `BRINGUP.md` stage 1b; then solder the plug in the housing\'s base, `BRINGUP.md` '
-                       f'stage 2 (15 minutes), plug its USB-C back into `bell` and tell Claude "{lab} has its plug".')
+            rails = '' if ok('rails') else ('(optional, 3 minutes) the rails, with a meter or one scope probe, '
+                                            '`BRINGUP.md` stage 1b; then ')
+            out.append(f'- **{lab}**: stage 1 passed{", and its rails" if ok("rails") else ""}. Next is yours: '
+                       f'{rails}solder the plug, `BRINGUP.md` stage 2 (15 minutes): through a printed base if {lab} '
+                       'is ever to be housed (once the plug is soldered, the base can no longer go on), bare if it '
+                       f'is to be the bench board. Then its USB-C back into `bell`, and tell Claude "{lab} has its '
+                       'plug".')
         elif not ok('gen'):
             out.append(f'- **{lab}**: its plug is on and checks alone. Next: plug {lab} into the back of the '
                        'HP 33120A (GPIB address 10, powered on), USB-C to `bell`, and tell Claude '

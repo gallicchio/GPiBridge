@@ -1,0 +1,97 @@
+{
+ "what": "A1 +1V1 at TP3: SDS2104X Plus channel 1, x10 probe held on TP3 by hand, 1 MOhm; DC at 0.5 V/div 20 MHz; ripple AC-coupled at 20 mV/div, full bandwidth, one record each; bus on (the transceivers powered), then bus off",
+ "script": "one-off, not a bring-up step (bringup/run.py meter records the result)",
+ "when": "2026-11-18 11:36:26",
+ "scope_before": {
+  "C1": {
+   "on": true,
+   "scale": 0.05,
+   "offset": 0.0,
+   "coupling": "DC",
+   "impedance": "FIFTy",
+   "probe": 10.0,
+   "bwlimit": "FULL"
+  },
+  "timebase": [
+   0.001,
+   0.0
+  ],
+  "trigger": {
+   "source": "C4",
+   "level": -0.00558,
+   "slope": "RISing",
+   "mode": "AUTO",
+   "status": "Auto"
+  }
+ },
+ "dc_bus_on": {
+  "mean_V": 1.1066,
+  "pp_mV": 20.8,
+  "rms_mV": 5.47,
+  "n": 1000000
+ },
+ "ripple_bus_on_fast": {
+  "mean_V": 0.0019,
+  "pp_mV": 14.8,
+  "rms_mV": 2.36,
+  "n": 2000
+ },
+ "ripple_bus_on_slow": {
+  "mean_V": 0.0026,
+  "pp_mV": 44.3,
+  "rms_mV": 2.52,
+  "n": 200000
+ },
+ "ripple_bus_on_ms": {
+  "mean_V": 0.0021,
+  "pp_mV": 48.3,
+  "rms_mV": 2.58,
+  "n": 1000000
+ },
+ "ripple_bus_off_fast": {
+  "mean_V": 0.0022,
+  "pp_mV": 12.5,
+  "rms_mV": 2.18,
+  "n": 2000
+ },
+ "ripple_bus_off_slow": {
+  "mean_V": 0.0019,
+  "pp_mV": 45.3,
+  "rms_mV": 2.53,
+  "n": 200000
+ },
+ "ripple_bus_off_ms": {
+  "mean_V": 0.0024,
+  "pp_mV": 46.3,
+  "rms_mV": 2.5,
+  "n": 1000000
+ },
+ "dc_bus_off": {
+  "mean_V": 1.1001,
+  "pp_mV": 29.2,
+  "rms_mV": 0.78,
+  "n": 1000000
+ },
+ "scope_after": {
+  "C1": {
+   "on": true,
+   "scale": 0.05,
+   "offset": 0.0,
+   "coupling": "DC",
+   "impedance": "FIFTy",
+   "probe": 10.0,
+   "bwlimit": "FULL"
+  },
+  "timebase": [
+   0.001,
+   0.0
+  ],
+  "trigger": {
+   "source": "C1",
+   "level": -0.00583,
+   "slope": "RISing",
+   "mode": "AUTO",
+   "status": "Arm"
+  }
+ }
+}

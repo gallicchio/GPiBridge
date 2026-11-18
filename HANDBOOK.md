@@ -46,19 +46,26 @@ The parts most likely to be fitted the wrong way round are listed in
    - `openocd -f interface/cmsis-dap.cfg -f target/rp2350.cfg` attaches;
    - the UART prints the firmware's JSON log from its first line, with the start-up
      time (`at_ms`).
-5. **The plug.** Solder the plug in the housing's base (`enclosure/README.md`), the
-   board pressed down onto it: the pins' first 0.5 mm is 1.0 mm wide and grips the
-   holes. Its 24 pins fit the board either way round, and turned round every signal is
-   on the wrong contact. So solder two pins first: the one in the hole marked "1", and
-   the one in the hole under "12" (contact 24's). Then measure at the plug's face, where the
-   contact numbers are moulded:
-   - contact 24 (the narrow side's end, diagonally opposite contact 1) reads 0 ohms to
-     GND (TP5);
-   - contact 1 does not.
+5. **The plug.** Push it through the housing's base first (`enclosure/README.md`): the
+   base's plate ends up between the plug's flange and the board, and the flange is
+   bigger than the opening, so a board whose plug is soldered can never be housed. (A
+   board that is to stay bare needs no base: the plug's own standoff sets its height.)
+   The D's wide side goes toward the board's top edge, away from the LEDs, under the
+   row of holes marked "1". Press the board down until the plug's standoff plate is
+   tight against it: the pins' first 0.5 mm is 1.0 mm wide and grips the holes. Its 24
+   pins fit the board either way round, and turned round every signal is on the wrong
+   contact. So solder two pins first: the one in the hole marked "1", and in the row
+   nearer the LEDs the second from the USB-C end (contact 23, ground). Then, with the
+   USB unplugged and a meter on beep against GND (TP5, or J1's shell), at the plug's
+   face, at the D's USB-C end:
+   - the second contact in along the D's narrow side beeps;
+   - the second contact in along its wide side does not.
 
-   Turned round, the two pins sit in each other's holes and the readings swap. Then
-   solder the rest, and check that contacts 1-11 and 13-17 are not shorted to each other
-   or to GND, and that contacts 12 (the cable shield) and 18-24 read 0 ohms to GND.
+   Turned round, the pin you soldered in the ground hole is contact 2, on the wide side,
+   and the readings swap. Then solder the rest, and check that contacts 1-11 and 13-17
+   are not shorted to each other or to GND, and that contacts 12 (the cable shield) and
+   18-24 read 0 ohms to GND: on the narrow side the seven from the USB-C end, and on the
+   wide side the one at the USB-C end.
 6. **An instrument.** Plug into an instrument with a known GPIB address (for example
    the bench's HP 33120A at 10). Then `python3 tools/gpibridge.py test 10` prints its
    `*IDN?`, a serial-poll byte and the queries per second, and exits 0.

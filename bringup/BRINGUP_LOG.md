@@ -213,3 +213,19 @@ Record: `results/2026-11-16/091510_failsafe_A1.json`
 - ok   picotool reboot answered
 - ok   picotool boots the image again, and that is not counted as a crash
 - note: picotool reboot answered at try 2
+
+## 2026-11-18 11:45:40  `rails` A1: PASS
+
+Record: `results/2026-11-18/114540_rails_A1.json`
+
+- ok   VBUS at TP1
+- ok   +3V3 at TP2
+- ok   +1V1 at TP3
+- ok   +5V_GPIB at TP4, bus on
+- ok   +5V_GPIB falls when the bus is switched off (Q1 opens)
+- ok   +1V1 ripple (a scope's figure, rev A's substituted L1)
+- note: Hand meter, black lead on J1's shell (Jason, 2026-11-18). TP1-TP4 first with A1 parked (bus off), then TP4 and TP1 with the bus on (green LED lit).
+- note: VBUS fell 43 mV when the transceivers came on (5.202 to 5.159 V, through a hub three levels deep); Q1 drops 15 mV (5.159 to 5.144 V).
+- note: TP4 at 0 V with the bus off: R21 (the SN75161B's DC pull-up) does not back-power +5V_GPIB (PIN_AUDIT.md's uncertain item).
+- note: +1V1 by scope (results/2026-11-18/113626_scope_1V1_A1.json): 1.107 V bus on, 1.100 V off. Ripple bus on / off: 14.8 / 12.5 mV pp at 200 ns/div; 44.3 / 45.3 mV pp, 2.5 mV rms at 20 us/div; 48.3 / 46.3 mV pp at 1 ms/div. The same with the transceivers on or off; the pp is mostly spikes picked up by a hand-held probe at full bandwidth.
+- note: The 3.3 V rail by meter, 3.308 V, against stage 1's 3.24 V from the temperature sensor at an assumed 40 C die: the die was nearer 32 C.
