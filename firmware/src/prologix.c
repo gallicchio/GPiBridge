@@ -11,7 +11,12 @@
 #include <string.h>
 
 #define LINE_MAX 8192            /* a line; a longer data line streams to the instrument as it arrives */
-#define WRITE_TIMEOUT_US 1000000 /* a listener that holds NRFD this long is not coming back */
+/* How long a listener may hold NRFD (busy) or NDAC before a write gives up on it.  Not
+ * ++read_tmo_ms: the Prologix manual gives that to ++read and ++spoll only.  1 s until
+ * 0.4.3: the bench's 33120A, going from local back to remote, held NRFD for longer after a
+ * message's first byte, and the rest was dropped (2026-11-18).  10 s is NI-488.2's
+ * default (T10s); a write that hits it is counted and logged as a timeout. */
+#define WRITE_TIMEOUT_US 10000000
 #define ESC 27
 
 prologix_config prologix_cfg;

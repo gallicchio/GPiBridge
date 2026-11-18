@@ -140,6 +140,23 @@ int main(void)
     CHECK(strstr(logged, "no listener") != NULL, "no instrument at all");
     sim_present = true;
 
+    /* a listener busy after the first byte (the bench's 33120A, back from local, held NRFD
+     * over 1 s and firmware 0.4.2 dropped the rest of the message, 2026-11-18): the
+     * message waits for it, whole, and ++read_tmo_ms (reads only, as the Prologix manual
+     * has it) does not cut it short */
+    type("++read_tmo_ms 500\n");
+    sim_busy_us = 3000000;
+    unsigned long t_before = gpib_count.timeouts;
+    type("*IDN?\n++read eoi\n");
+    CHECK(!strcmp(out, "HEWLETT-PACKARD,33120A,0,7.0-5.0-1.0\n") && gpib_count.timeouts == t_before,
+          "a listener busy 3 s after the first byte gets the whole message (timeouts %lu)",
+          gpib_count.timeouts - t_before);
+    sim_busy_us = 30000000;              /* busy for longer than any write waits: given up, counted */
+    type("VOLT 1.0\n");
+    CHECK(gpib_count.timeouts == t_before + 1 && strstr(logged, "timeout"), "a listener busy 30 s: the write gives up");
+    sim_busy_us = 0;
+    type("++clr\n");
+
     /* settings: each change asks to be saved; ++savecfg 0 stops that */
     saves = 0;
     type("++eos 2\n++eoi 0\n");

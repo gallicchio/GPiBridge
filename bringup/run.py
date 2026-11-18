@@ -16,10 +16,18 @@
     python3 bringup/run.py plug [BOARD]     stage 2: the plug soldered, nothing plugged into it
     python3 bringup/run.py pair X Y         stage 2b: two boards on one GPIB cable, every line both ways
     python3 bringup/run.py prologix [BOARD] stage 3: the bench Prologix as a device on the same cable (not simulated)
-    python3 bringup/run.py gen [BOARD] [--address 10]
+    python3 bringup/run.py gen [BOARD] [--address 10] [--scope sds2104 --channel 2]
                                             stage 4: the HP 33120A, through lab-instrument-control
+                                            (--scope: its OUTPUT on that scope channel by coax: the
+                                            scope also checks the sine and the 16,000 points played)
+    python3 bringup/run.py speed BOARD --address N [--only SECTION ...] [--live]
+                                            SPEED AND FAULT TESTS, not a stage (bringup/speed_faults.py):
+                                            how fast, and how gracefully, against an E364xA or a 33120A
     python3 bringup/run.py identify BOARD   flash its yellow and red LEDs for a minute
     python3 bringup/run.py unpark BOARD     the bring-up over: take the bus at plug-in again, as shipped
+    python3 bringup/run.py park BOARD       off the bus, the settings a Prologix program expects saved, autostart 0:
+                                            as every step leaves it (after a session by hand, such as
+                                            lab-instrument-control through the board)
     python3 bringup/run.py ask BOARD "++t status"     one command, its answer
 
 BOARD is the label the bring-up gave the board when it first saw it (A1, A2: GPiBridge;
@@ -114,9 +122,14 @@ def main(argv):
     ap.add_argument('--fault', action='append', default=[], metavar='BOARD:WHAT',
                     help='--sim only: no5v, stuck5v, turned, open=LINE, short=LINE,LINE')
     ap.add_argument('--lite', action='append', default=[], metavar='BOARD', help='--sim only: this board is a Lite')
-    ap.add_argument('--scope', default='sds1104', help='rails: sds1104[:usb|:SERIAL|:IP] or sds2104[:IP|:usb]')
-    ap.add_argument('--channel', type=int, default=1, help='rails: the scope channel the probe is on')
-    ap.add_argument('--address', type=int, default=10, help='gen: the 33120A\'s GPIB address')
+    ap.add_argument('--scope', default=None, help='rails: sds1104[:usb|:SERIAL|:IP] (the default) or '
+                    'sds2104[:IP|:usb]; gen: sds2104, the generator\'s OUTPUT on it by coax')
+    ap.add_argument('--channel', type=int, default=None, help='rails: the probe\'s channel (1); gen: the coax\'s (2)')
+    ap.add_argument('--address', type=int, default=10, help='gen, speed: the instrument\'s GPIB address')
+    ap.add_argument('--only', nargs='+', default=None, metavar='SECTION',
+                    help='speed: adapter query set lines faults capture live')
+    ap.add_argument('--live', action='store_true', help='speed: also the output-on section (E364xA)')
+    ap.add_argument('--supply-output', type=int, default=2, help='speed --live: the output with the load on it')
     ap.add_argument('--note', action='append', default=[], help='meter: a line for the record')
     o = ap.parse_args(argv)
 
@@ -137,8 +150,8 @@ def main(argv):
                 faults.setdefault(lab, []).append(what)
             tmp = tempfile.mkdtemp(prefix='gpibridge_sim_')
             sim = SIM.SimBench(tmp, [dict(label=lab, lite=lab in o.lite or lab.startswith('L'),
-                                          instrument=o.step == 'gen' and i == 0, faults=faults.get(lab, ()),
-                                          cabled=o.step in ('pair', 'gen'),
+                                          instrument=o.step in ('gen', 'speed') and i == 0,
+                                          faults=faults.get(lab, ()), cabled=o.step in ('pair', 'gen', 'speed'),
                                           manual=o.step == 'pair')     # parked, as every step leaves a real one
                                      for i, lab in enumerate(labels)])
             ctx = S.Ctx(sim=sim, home=tmp, quick=True)
@@ -166,7 +179,18 @@ def main(argv):
         if o.step == 'prologix':
             return report(S.step_prologix(ctx, a[0] if a else None))
         if o.step == 'gen':
-            return report(S.step_gen(ctx, a[0] if a else None, o.address))
+            coax = None
+            if o.scope and not o.sim:
+                import bench
+                coax = bench.Coax(o.scope, o.channel or 2)
+            try:
+                return report(S.step_gen(ctx, a[0] if a else None, o.address, coax=coax))
+            finally:
+                if coax is not None:
+                    coax.close()
+        if o.step == 'speed':
+            import speed_faults
+            return report(speed_faults.run(ctx, a[0] if a else None, o.address, o.only, o.live, o.supply_output))
         if o.step == 'rails':
             label = a[0] if a else ctx.pick()[0]
             if o.sim:
@@ -179,7 +203,7 @@ def main(argv):
                 probe = SIM.SimProbe(['+1V1', '+5V_GPIB', 'VBUS', '+3V3'], powered)
             else:
                 import bench
-                probe = bench.Probe(o.scope, o.channel)
+                probe = bench.Probe(o.scope or 'sds1104', o.channel or 1)
             try:
                 return report(S.step_rails(ctx, label, probe))
             finally:
@@ -195,10 +219,13 @@ def main(argv):
                     else:
                         readings[k] = float(v)
             return report(S.step_meter(ctx, label, readings, ripple, o.note))
-        if o.step in ('identify', 'unpark', 'ask'):
+        if o.step in ('identify', 'unpark', 'park', 'ask'):
             label = a[0] if a else None
             with ctx.open(label) as ad:
-                if o.step == 'identify':
+                if o.step == 'park':
+                    S.park(ad)
+                    print(ad.ask('++t status'))
+                elif o.step == 'identify':
                     ad.cmd('++t identify 60')
                     print(f'{ctx.pick(label)[0]}: its yellow and red LEDs flash for a minute')
                 elif o.step == 'unpark':

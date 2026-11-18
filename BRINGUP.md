@@ -262,8 +262,10 @@ Prologix to simulate): Claude works it out alone, both ends being on USB.
 1. The board's green LED is **off**. The 33120A is **on**, its address **10** (Shift,
    I/O MENU, HP-IB ADDR, if in doubt).
 2. Plug the board straight into the 33120A's rear **GPIB** socket (the D only fits one
-   way), or onto a cable connector that is on it. **Nothing on the 33120A's Output BNC**:
-   the test sets up to 1 Vpp there and ends at 0 V DC.
+   way), or onto a cable connector that is on it. On the 33120A's **Output** BNC: nothing,
+   or a coax to a scope channel set to 50 Ω (the test sets up to 1 Vpp there and ends at
+   0 V DC). With the scope, say which channel: `--scope sds2104 --channel 2` has the scope
+   check the sine and the 16,000 points as played (2026-11-18: the SDS2104X Plus, channel 2).
 3. USB-C into `bell`. Say "A1 is on the 33120A" (and whether a Prologix shares the
    cable).
 

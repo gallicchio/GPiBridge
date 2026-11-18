@@ -10,7 +10,9 @@ modelled from their function tables.  What these tests show:
 - lab-instrument-control's own HP 33120A driver runs through the adapter, 16,000-point
   upload included (skipped if lab-instrument-control is not beside this repository).
 """
+import json
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -75,6 +77,22 @@ def test_plug_step(tmp_path):
     b, ctx = make(tmp_path, [dict(label='A1', cabled=False)])
     with b:
         assert S.step_plug(ctx, 'A1')['ok']
+
+
+def test_park_after_a_session_by_hand(tmp_path):
+    """`run.py park`: after lab-instrument-control has driven the board (on the bus, its
+    own unsaved settings), the board goes back to what every step leaves."""
+    b, ctx = make(tmp_path, [dict(label='A1', cabled=False)])
+    with b:
+        with ctx.open('A1') as a:
+            for c in ('++savecfg 0', '++mode 1', '++auto 0', '++eoi 1', '++eos 2', '++addr 2', '++t power 1'):
+                a.cmd(c)                                # what scpi_link's Prologix class sends, then the bus on
+            assert a.json('++t status')['bus'] == 'controller'
+            S.park(a)
+        with ctx.open('A1') as a:
+            st = a.json('++t status')
+            assert (st['bus'], st['autostart']) == ('off', 0)
+            assert a.ask('++eos') == '0' and a.ask('++addr') == '1'
 
 
 # ---- stage 1b ----------------------------------------------------------------------------------------------
@@ -219,6 +237,85 @@ def test_gen_with_nobody_at_the_address(tmp_path):
     with b:
         with pytest.raises(IOError):
             S.step_gen(ctx, 'A1', 10)
+
+
+@pytest.mark.skipif(not have_lic(), reason='lab-instrument-control is not beside this repository')
+def test_lab_instrument_control_recovers_from_an_answer_left_unread(tmp_path):
+    """An answer the adapter has read and the program has not (a query cut short by a
+    signal, a timeout) must not be handed to the next query.  Seen on A1 with the E3646A
+    (2026-11-18): every answer after it came one query late, a device clear included.
+    And an address with nobody there says so, from the board's own count."""
+    b, ctx = make(tmp_path, [dict(label='A1', instrument=True)])
+    with b:
+        port = ctx.present()['A1']['port']
+        with ctx.open('A1') as a:
+            a.cmd('++t power 1')
+        bench.lic()
+        from scpi_link import Link
+        with Link(gpib=10, prologix=port, timeout=3) as link:
+            assert '33120A' in link.idn
+            for clear in (False, True):
+                link.write('*OPC?')
+                link.gpib.command('++read eoi')
+                time.sleep(0.3)                         # '1' is in the port, unread
+                if clear:
+                    link.clear()
+                assert '33120A' in link.query('*IDN?')
+                assert link.query('VOLT?') == '+1.00000E+00'
+            assert json.loads(link.gpib.ask('++t status'))['bus'] == 'controller'
+            with pytest.raises(IOError, match='no listener at GPIB 9'):
+                Link(gpib=9, prologix=port, timeout=1.5)
+            assert '33120A' in link.query('*IDN?')     # and the instrument that is there still answers
+        assert b.stats()['A1'] == {'fights': 0, 'breaches': 0}
+
+
+def test_scope_checks_of_the_generator_output():
+    """Stage 4's scope checks (the 33120A's OUTPUT on a scope channel) on made-up records:
+    a right one passes, a wrong frequency, amplitude or waveform does not."""
+    import numpy as np
+    rng = np.random.default_rng(3)
+    t = np.arange(200_000) * 25e-9 - 2.5e-3                    # 5 ms at 40 MSa/s, t = 0 mid-screen
+    good = S.scope_sine(t, 0.1 + 0.4 * np.sin(2 * np.pi * 1234.5 * t + 0.7) + rng.normal(0, 3e-3, t.size))
+    assert abs(good['freq'] - 1234.5) < 0.5 and abs(good['vpp'] - 0.8) < 0.01 and abs(good['offset'] - 0.1) < 0.005
+    assert abs(S.scope_sine(t, 0.1 + 0.4 * np.sin(2 * np.pi * 1000 * t))['freq'] - 1234.5) > 100
+    assert abs(S.scope_sine(t, 0.1 + 0.2 * np.sin(2 * np.pi * 1234.5 * t))['vpp'] - 0.8) > 0.3
+
+    x = [round(2047 * s) / 2047 for s in rng.uniform(-1, 1, 16000)]
+    t = np.arange(200_000) * 100e-9 - 10e-3                    # 20 ms at 10 MSa/s: two periods of 100 Hz
+    k = (((t + 3.3e-3) * 100.0 % 1.0) * 16000).astype(int)      # played from an arbitrary start
+    played = 0.5 * np.asarray(x)[k] + rng.normal(0, 5e-3, t.size)
+    m = S.scope_arb(t, played, x, 100.0)
+    assert m['correlation'] > 0.95 and abs(m['gain'] - 0.5) < 0.02
+    other = [round(2047 * s) / 2047 for s in rng.uniform(-1, 1, 16000)]
+    assert S.scope_arb(t, played, other, 100.0)['correlation'] < 0.2      # other samples: no match
+
+
+@pytest.mark.skipif(not have_lic(), reason='lab-instrument-control is not beside this repository')
+def test_speed_and_fault_tests_simulated(tmp_path):
+    """bringup/speed_faults.py (SPEED AND FAULT TESTS, not a stage) against the simulated
+    33120A: every fault recovered from, the generator left as found, no stage moved."""
+    import speed_faults
+    b, ctx = make(tmp_path, [dict(label='A1', instrument=True)])
+    with b:
+        rec = speed_faults.run(ctx, 'A1', 10)
+        assert rec['ok'], failed(rec)
+        assert rec['model'] == '33120A' and rec['set_then_get']['n'] > 0
+        assert 'speed' not in ctx.state['boards']['SIMA1']['stages']
+        assert b.stats()['A1'] == {'fights': 0, 'breaches': 0}
+        with ctx.open('A1') as a:
+            assert a.json('++t status')['bus'] == 'off'      # parked
+
+
+@pytest.mark.skipif(not have_lic(), reason='lab-instrument-control is not beside this repository')
+def test_speed_and_fault_tests_catch_an_open_data_line(tmp_path):
+    import speed_faults
+    b, ctx = make(tmp_path, [dict(label='A1', instrument=True, faults=['open=DIO3'])])
+    with b:
+        try:
+            rec = speed_faults.run(ctx, 'A1', 10, ['query', 'set'])
+            assert not rec['ok']
+        except (IOError, S.StepFailed):
+            pass                                             # *IDN? itself garbled: caught at the start
 
 
 # ---- the status page ---------------------------------------------------------------------------------------

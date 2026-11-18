@@ -1,0 +1,54 @@
+{
+ "step": "plug",
+ "board": "A1",
+ "at": "2026-11-18 13:36:50",
+ "sim": false,
+ "ok": true,
+ "checks": [
+  {
+   "what": "the self-test (5 V switch, receive paths, joints)",
+   "ok": true,
+   "got": "ok",
+   "want": "ok"
+  }
+ ],
+ "notes": [
+  "not seen from here: an open joint at the plug, two DIO lines bridged, the plug turned round"
+ ],
+ "selftest": [
+  {
+   "selftest": "off",
+   "down": "0xffff"
+  },
+  {
+   "selftest": "dev_listen",
+   "reads": "0x73ff",
+   "up": "0x0000",
+   "down": "0x0000"
+  },
+  {
+   "selftest": "dev_talk",
+   "reads": "0x7c00",
+   "up": "0x0000",
+   "down": "0x0100"
+  },
+  {
+   "selftest": "ctrl_listen",
+   "reads": "0x82ff",
+   "up": "0x0000",
+   "down": "0x0000"
+  },
+  {
+   "selftest": "ctrl_talk",
+   "reads": "0x8c00",
+   "up": "0x0000",
+   "down": "0x0000"
+  },
+  {
+   "selftest": "done",
+   "board": "GPiBridge rev A",
+   "ok": true
+  }
+ ],
+ "selftest_trouble": []
+}

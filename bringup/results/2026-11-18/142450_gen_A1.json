@@ -1,0 +1,114 @@
+{
+ "step": "gen",
+ "board": "A1",
+ "at": "2026-11-18 14:24:50",
+ "sim": false,
+ "ok": false,
+ "checks": [
+  {
+   "what": "on the bus as the controller",
+   "ok": true,
+   "got": "controller",
+   "want": "controller"
+  },
+  {
+   "what": "*IDN? through lab-instrument-control",
+   "ok": true,
+   "got": "HEWLETT-PACKARD,33120A,0,7.0-2.0-1.0",
+   "want": "...33120A..."
+  },
+  {
+   "what": "a sine set and read back",
+   "ok": true,
+   "got": {
+    "function": "SIN",
+    "freq": 1234.5,
+    "vpp": 0.8,
+    "offset": 0.1,
+    "load": 50.0
+   },
+   "want": "SIN 1234.5 Hz 0.8 Vpp 0.1 V"
+  },
+  {
+   "what": "a triangle set and read back",
+   "ok": true,
+   "got": {
+    "function": "TRI",
+    "freq": 2000.0,
+    "vpp": 1.0,
+    "offset": 0.0,
+    "load": 50.0
+   },
+   "want": "TRI 2 kHz"
+  },
+  {
+   "what": "20 MHz refused, with the generator's own error",
+   "ok": true,
+   "got": true,
+   "want": true
+  },
+  {
+   "what": "the error queue is empty afterwards",
+   "ok": true,
+   "got": null,
+   "want": []
+  },
+  {
+   "what": "1000 points uploaded in one binary line (2000 bytes): the count and the average the generator computed",
+   "ok": true,
+   "got": {
+    "points": 1000,
+    "average": 0.00110015
+   },
+   "want": {
+    "points": 1000,
+    "average": 0.0011
+   }
+  },
+  {
+   "what": "16000 points uploaded in one binary line (32000 bytes): the count and the average the generator computed",
+   "ok": true,
+   "got": {
+    "points": 16000,
+    "average": -0.00244788
+   },
+   "want": {
+    "points": 16000,
+    "average": -0.002448
+   }
+  },
+  {
+   "what": "a serial poll answers with a status byte",
+   "ok": true,
+   "got": "0",
+   "want": "a number"
+  },
+  {
+   "what": "sigrok's IEEE-488 decoder reads the capture as the query and its answer",
+   "ok": true,
+   "got": "*IDN?\nHEWLETT-PACKARD,33120A,0,7.0-2.0-1.0\n",
+   "want": "*IDN?\\nHEWLETT-PACKARD,33120A,0,7.0-2.0-1.0\\n"
+  },
+  {
+   "what": "no timeout and no \"no listener\" in the whole step",
+   "ok": false,
+   "got": [
+    31,
+    2
+   ],
+   "want": [
+    28,
+    2
+   ]
+  }
+ ],
+ "notes": [
+  "through the Prologix the same loop runs at about 31 a second (lab-instrument-control, gpib/gpib.md)"
+ ],
+ "address": 10,
+ "idn": "HEWLETT-PACKARD,33120A,0,7.0-2.0-1.0",
+ "arb_1000_s": 0.91,
+ "arb_16000_s": 9.63,
+ "queries_per_s": 44.7,
+ "capture": "results/2026-11-18/142450_gen_A1_idn.vcd"
+}

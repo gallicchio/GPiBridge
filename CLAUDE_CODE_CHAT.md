@@ -1564,3 +1564,132 @@ wrote `results/2026-11-18/114540_rails_A1.json`, with the scope's numbers in
 `113626_scope_1V1_A1.json`; `BRINGUP_LOG.md`, `STATUS.md`, `REVB.md` (open questions
 answered; 1.3, new 1.6 and 2.11). `bench.Probe` now always sets 1 MΩ. Lessons in
 `~/OpticsPCBs/CLAUDE_PCB.md` section 9 (not committed there).
+
+## Prompt 19
+
+A1 has its plug
+
+## Response 19 2026-11-18 13:40 Claude Opus 5.5
+
+*Nothing committed. No instrument touched.*
+
+**Where we are:** A1 has passed stage 2: `run.py plug A1` (`results/2026-11-18/133650_plug_A1.json`).
+The self-test read every line exactly as it did bare on 11-16, in all five roles, so no
+plug joint bridges to ground or to a driven neighbour. A1 is parked again (green LED off).
+
+What this step cannot see is an open joint, two data lines bridged, or a plug turned
+round (the meter check at step 5 covers that). Stage 4 sees all three.
+
+**Next, stage 4 (2 minutes):** the HP 33120A on, at GPIB address 10, nothing on its
+Output BNC. A1's plug straight into its rear GPIB socket, A1's USB-C into `bell`, and
+say "A1 is on the 33120A". No Prologix is on `bell` now, so the run through the Prologix
+for comparison waits until one is.
+Stage 2b (two boards on one cable) waits for a second board with a plug; stage 3 (the
+Prologix as a device) for the Prologix and a GPIB cable.
+
+## Prompt 20
+
+Slight change of plans. I plugged the GBiBridge into the E3646 which has a broken output 1.
+I set it to GPIB and it defaulted to address 02. See ~/lab-instrument-control for more
+details on this unit. It has a 5W 1.5 ohm resistor on channel 2. Try to control the
+voltage and current limit to safe levels. Read back the current.
+
+## Response 20 2026-11-18 13:55 Claude Opus 5.5
+
+*Nothing committed. The E3646A was claimed (`E3646A@GPIB2`) and is still held.*
+
+**Where we are:** A1 drove the E3646A through its own plug, and it all worked. A1 is
+parked; the supply is as found, output off. Next is still stage 4, the 33120A, when you
+choose.
+
+- It is the first E3646A (`CAL:COUNt?` +21, the faulty output 1), in its power-on state.
+- Output 2 into the resistor, current limited first, never above 1 V or 0.65 W:
+
+  | asked | read back | mode |
+  |---|---|---|
+  | 0.2 V, 0.5 A limit | 0.1939 V, 0.1285 A | CV |
+  | 0.5 V, 0.5 A limit | 0.4953 V, 0.3228 A | CV |
+  | 1.0 V, 0.8 A limit | 0.9960 V, 0.6456 A | CV |
+  | 1.0 V, 0.3 A limit | 0.4629 V, 0.3018 A | CC |
+
+  Within 1 % of the same supply and resistor over RS-232 on 10-15. Output 1 read −0.203 V
+  and −10.6 mA throughout, as broken as before.
+- A1: 5999 bytes out, 1540 in, no timeout, no "no listener". The plug is the right way
+  round, and the data and handshake lines work through it; SRQ, IFC and REN are not shown
+  by this.
+- New: `run.py park A1` puts a board back the way a step leaves it after a session by hand.
+- Recorded in `bringup/results/2026-11-18/134503_e3646a_A1.json`, `BRINGUP_LOG.md`,
+  `REVB.md` section 3; lab-instrument-control's `hp/hp.md`, `AGENTS.md` and the driver's
+  docstring (uncommitted there, beside another session's uncommitted edits).
+
+## Prompt 21
+
+When you are done, ramp the supply up and down in steps of 0.1 V twice a second. I'll take
+a triumphant video. Keep going with that until I tell you to stop.
+
+## Response 21 2026-11-18 13:49 Claude Opus 5.5
+
+Ramping: output 2 from 0 to 1.0 V and back in 0.1 V steps, one every 0.5 s, 0.8 A limit
+(at most 0.65 W), in the background until told to stop, with a 60-minute cap. The supply
+read 0.257 A at 0.4 V and 0.580 A at 0.9 V. On stopping: output off, settings as found,
+A1 parked.
+
+## Prompt 22
+
+The screen often only shows the limit rather than the current. Don't set the limit each
+time. As it ramps, I want to see the voltage and live current.
+
+## Response 22 2026-11-18 13:52 Claude Opus 5.5
+
+The ramp only ever sent `VOLTage x`; the limit was set once. The guide has the display
+leave its limit mode "after about 5 seconds", and a step every 0.5 s never gives it that.
+Stopped the first ramp (248 steps, none late, no timeouts) and restarted it through the
+trigger subsystem (`VOLTage:TRIGgered x;:INITiate`), in case a triggered change keeps the
+meter view. Next to try: `DISPlay:MODE VI` with each step.
+
+## Prompt 23
+
+If that's the case, ramp more slowly
+
+## Response 23 2026-11-18 13:55 Claude Opus 5.5
+
+Now 7 s a step: about 5 s of limits, then about 2 s of measured current; 140 s a cycle.
+Stopping the trigger ramp went wrong: the stop signal came in the middle of a query, the
+clean-up then read each answer one query late, and it quit without restoring the supply
+or parking A1. The supply was already in its power-on state when I looked (asked: had it
+been switched off and on?). The ramp script now stops on a flag between commands and
+runs every clean-up step whatever the one before did; tested by stopping it mid-run.
+
+## Prompt 24
+
+Keep testing. See if you can push the setting and getting functions to the limit of
+speed, and make sure that things are handled gracefully.
+
+(During the turn:) I did power cycle it, but I thought you were done with the ramp.
+
+## Response 24 2026-11-18 14:15 Claude Opus 5.5
+
+*Nothing committed. The E3646A is still claimed (`E3646A@GPIB2`); A1 is parked.*
+
+**Where we are:** A1 drove the E3646A as fast as the supply goes, and through every fault
+I could make, without a wrong byte. One real bug turned up, in lab-instrument-control,
+and is fixed there. Next at the bench is still stage 4, the 33120A.
+
+- The power cycle explains the reset and the 4 timeouts: A1 rode through it. (I had
+  said the ramp was restarted; I should have said it plainly that the supply was live.)
+- Speed (output off): A1's own round trip 0.24 ms; `*OPC?` 29/s, `VOLT?` 24/s, `*IDN?`
+  16/s, a measurement 10/s; set with `*OPC?` 21/s; set then read back 12/s, 500 pairs, no
+  mismatch; 200 settings back to back 25/s. A capture of `*IDN?`: A1 takes each byte in
+  about 1 µs, the supply needs 90 ms to start its answer. The supply is the limit.
+- Output on: a step and a current reading 6.6/s; the current settles within a reading.
+- New through the plug: SRQ (serial poll 96) and EOI sent by A1. Only IFC and REN unshown.
+- The bug: a query given up after its `++read` (timeout, signal) left its answer in the
+  port, and every later answer came one query late, `clear()` included. That is what
+  broke the ramp's clean-up. `scpi_link` now notes such a read and, before the next
+  command, asks the adapter `++ver` and drops everything before its answer. Tested: a
+  fake adapter in lab-instrument-control (the old code fails 3 of 4), `sim_board` here,
+  and on the bench, where every fault case now recovers on the next query.
+- A timeout at an empty address now says "the GPiBridge found no listener at GPIB 9".
+- Recorded: `bringup/results/2026-11-18/140851_e3646a_speed_A1.json` and the capture,
+  `BRINGUP_LOG.md`, `REVB.md` (2.12 and section 3); lab-instrument-control's
+  `scpi_link.py`, `test_scpi_link.py`, `gpib/gpib.md`, `hp/hp.md`. Tests: 32 here, 30 there.

@@ -229,3 +229,73 @@ Record: `results/2026-11-18/114540_rails_A1.json`
 - note: TP4 at 0 V with the bus off: R21 (the SN75161B's DC pull-up) does not back-power +5V_GPIB (PIN_AUDIT.md's uncertain item).
 - note: +1V1 by scope (results/2026-11-18/113626_scope_1V1_A1.json): 1.107 V bus on, 1.100 V off. Ripple bus on / off: 14.8 / 12.5 mV pp at 200 ns/div; 44.3 / 45.3 mV pp, 2.5 mV rms at 20 us/div; 48.3 / 46.3 mV pp at 1 ms/div. The same with the transceivers on or off; the pp is mostly spikes picked up by a hand-held probe at full bandwidth.
 - note: The 3.3 V rail by meter, 3.308 V, against stage 1's 3.24 V from the temperature sensor at an assumed 40 C die: the die was nearer 32 C.
+
+## 2026-11-18 13:36:50  `plug` A1: PASS
+
+Record: `results/2026-11-18/133650_plug_A1.json`
+
+- ok   the self-test (5 V switch, receive paths, joints)
+- note: not seen from here: an open joint at the plug, two DIO lines bridged, the plug turned round
+
+## 2026-11-18 13:45:03  the E3646A by hand, A1 (not a step)
+
+Record: `results/2026-11-18/134503_e3646a_A1.json`
+
+- A1's plug straight into the first E3646A's GPIB socket (`CAL:COUNt?` +21: output 1 faulty), set to GPIB at address 2 by Jason; a 1.5 Ω 5 W resistor on output 2. Bench claim `E3646A@GPIB2`.
+- `++t power 1` by hand, then lab-instrument-control's `AgilentE36xxA(address=2, prologix=A1's port)`. Found in the power-on state (0 V, 3 A, P8V, OVP 22 V, output off); put back so, output off.
+- Output 2, each setting read back right: 0.2 V asked, 0.1939 V at 0.1285 A; 0.5 V, 0.4953 V at 0.3228 A; 1.0 V with 0.8 A limit, 0.9960 V at 0.6456 A (CV, 0.64 W); 1.0 V with 0.3 A limit, 0.3018 A at 0.4629 V (CC). Within 1 % of the RS-232 run of 2026-10-15 (lab-instrument-control `hp/hp.md`).
+- A1 after: 5999 bytes out, 1540 in, 0 timeouts, 0 "no listener". Parked with `run.py park A1` (new).
+
+## 2026-11-18 13:49-14:09  the E3646A ramped, then pushed for speed, A1 (not a step)
+
+Record: `results/2026-11-18/140851_e3646a_speed_A1.json`, capture `135830_capture_idn_e3646a_A1.vcd`
+
+- Ramps of output 2, 0 to 1 V in 0.1 V steps (0.8 A limit), for a video: every 0.5 s (248 steps, none late), through the trigger subsystem, then every 7 s. Jason power-cycled the supply during the second: 4 timeouts, no hang. That ramp's stop came in mid-query and its clean-up read every answer one late; fixed in lab-instrument-control (below).
+- Speed, output off: A1's own `++ver` 0.24 ms; `*OPC?` 29/s, `VOLT?` 24/s, `*IDN?` 16/s, `MEAS` 10/s; `VOLT x;*OPC?` 21/s; `VOLT x` then `VOLT?` 12/s, 500 pairs, no mismatch; 200 `VOLT` back to back, 25/s. The capture: A1 takes a byte in about 1 µs; the supply takes 90 ms to start answering `*IDN?`.
+- Through the plug, now also: SRQ (serial poll 96) and EOI sent by A1.
+- Faults: an empty address, a read with nothing asked, refused commands, an answer left unread, a timeout mid-measurement, a signal mid-query, 80 commands in one message, 5000 bytes of junk. Before the fix in lab-instrument-control's `scpi_link`, an answer left unread shifted every later answer by one, `clear()` included; after it, every case recovers on the next query.
+- Output on: a step and a current reading 6.6/s. Left as found each time (0 V, 3 A, output off, `*SRE`/`*ESE` 0); A1 parked.
+
+## 2026-11-18 14:24:50  `gen` A1: FAIL
+
+Record: `results/2026-11-18/142450_gen_A1.json`
+
+- ok   on the bus as the controller
+- ok   *IDN? through lab-instrument-control
+- ok   a sine set and read back
+- ok   a triangle set and read back
+- ok   20 MHz refused, with the generator's own error
+- ok   the error queue is empty afterwards
+- ok   1000 points uploaded in one binary line (2000 bytes): the count and the average the generator computed
+- ok   16000 points uploaded in one binary line (32000 bytes): the count and the average the generator computed
+- ok   a serial poll answers with a status byte
+- ok   sigrok's IEEE-488 decoder reads the capture as the query and its answer
+- FAIL no timeout and no "no listener" in the whole step (got [31, 2], wanted [28, 2])
+- note: through the Prologix the same loop runs at about 31 a second (lab-instrument-control, gpib/gpib.md)
+
+## 2026-11-18 14:39:54  `gen` A1: FAIL
+
+Record: `results/2026-11-18/143954_gen_A1.json`
+
+- ok   on the bus as the controller
+- ok   *IDN? through lab-instrument-control
+- ok   a sine set and read back
+- ok   on the scope: the sine
+- ok   a triangle set and read back
+- ok   20 MHz refused, with the generator's own error
+- ok   the error queue is empty afterwards
+- ok   1000 points uploaded in one binary line (2000 bytes): the count and the average the generator computed
+- ok   16000 points uploaded in one binary line (32000 bytes): the count and the average the generator computed
+- ok   on the scope: the 16000 points played
+- ok   a serial poll answers with a status byte
+- FAIL sigrok's IEEE-488 decoder reads the capture as the query and its answer (got "*", wanted "*IDN?\\n\\n")
+- FAIL no timeout and no "no listener" in the whole step (got [86, 3], wanted [84, 3])
+- note: through the Prologix the same loop runs at about 31 a second (lab-instrument-control, gpib/gpib.md)
+
+## 2026-11-18 14:45:16  `flash` A1: PASS
+
+Record: `results/2026-11-18/144516_flash_A1.json`
+
+- ok   an RP2354A is waiting in its ROM bootloader (2e8a:000f)
+- ok   picotool load and verify, USB 3-3
+- ok   A1 (9F9D542A93F67D76) runs the new firmware

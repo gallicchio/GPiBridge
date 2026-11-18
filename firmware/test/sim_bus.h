@@ -15,6 +15,9 @@ extern unsigned long sim_bytes_in, sim_sum_in;   /* every data byte it took, and
 extern bool sim_last_eoi;               /* its last message ended with EOI */
 extern bool sim_lite;                   /* test_prologix: what hal_lite() answers */
 extern bool sim_other_controller;       /* test_prologix: another controller holds REN */
+extern uint64_t sim_busy_us;            /* after a message's first byte it holds NRFD this long (the
+                                           bench's 33120A, going from local to remote, held it over
+                                           1 s, 2026-11-18) */
 
 void sim_reset(void);
 bool sim_ren(void);

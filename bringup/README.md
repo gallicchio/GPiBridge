@@ -11,7 +11,8 @@ leaves behind.
 | `REVB.md` | what rev B should change, what the firmware already changed, and the questions still open |
 | `state.json` | each board's serial number, its name (A1, L1, ...) and the stages it has passed |
 | `results/<day>/` | each step's full record (JSON), and captures (VCD) |
-| `steps.py` | the steps: `bare`, `flash`, `rails`, `plug`, `pair`, `prologix`, `gen` |
+| `steps.py` | the steps: `bare`, `flash`, `rails`, `meter`, `plug`, `pair`, `prologix`, `gen` |
+| `speed_faults.py` | **speed and fault tests, not a stage**: how fast a board drives an E364xA or a 33120A, and every fault it must come back from (`run.py speed A1 --address 2`). Its record goes to `results/`, nothing to `state.json` |
 | `adapter.py` | one "++" adapter on a serial port (a GPiBridge, the simulator, or a Prologix); finding them on USB |
 | `bench.py` | the instruments, through lab-instrument-control's drivers, each checked against its `bench_claims.py` first |
 | `expect.py` | every number a board is compared against, with where it comes from |
@@ -23,8 +24,10 @@ python3 bringup/run.py build            # firmware, host tests, simulator
 python3 bringup/run.py --sim bare       # any step against a simulated board
 python3 bringup/run.py --sim pair A1 A2 --fault A2:open=DAV
 pytest bringup/                         # every step, good boards and planted faults
+python3 bringup/run.py --sim speed      # the speed and fault tests against the simulated 33120A
 ```
 
 lab-instrument-control is looked for two folders above this repository's root (where it
 lives on Jason's machines), one above, in the home folder, or where
-`$LAB_INSTRUMENT_CONTROL` says. Only stage 1b's scope and stage 4's generator need it.
+`$LAB_INSTRUMENT_CONTROL` says. Only stage 1b's scope, stage 4's generator (and its
+scope) and the speed and fault tests need it.

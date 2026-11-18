@@ -199,6 +199,71 @@ the fix.
   every time. The one-off script that took A1's ripple put the 50 Ω back when it
   restored the scope, though Jason had asked for it off; set to 1 MΩ by hand after.
 
+### 2.12 Driving the E3646A as fast as it goes (2026-11-18)
+Before stage 4, A1 drove the first E3646A at GPIB 2 through lab-instrument-control
+(`results/2026-11-18/134503_e3646a_A1.json`, `140851_e3646a_speed_A1.json`).
+- **A1 held up.** 1000 settings read back with no mismatch; 200 `VOLT` commands sent
+  back to back (the supply's handshake the only brake, 25 a second); 80 commands
+  chained in one 968-byte message; 5000 bytes of junk (the supply said "mnemonic too
+  long"); an address with nobody there (counted as "no listener"); the supply switched
+  off and on in the middle of a session (4 timeouts, no hang). Not one wrong byte.
+- **The fault was in the host library, and it is fixed there.** When a query was
+  given up after its `++read` had gone out (a timeout, or a signal stopping a script),
+  its answer reached the port late and every later query got the answer before its
+  own. A device clear did not help: it cleared the library's buffer, not the port. It
+  broke the clean-up of a ramp on the bench. lab-instrument-control's `scpi_link` now
+  marks such a read, and before the next command asks the adapter for `++ver` and
+  drops everything before that answer (the adapter answers in order: a read still in
+  progress finishes first). Tested with a fake adapter there, through `sim_board` here
+  (`test_lab_instrument_control_recovers_from_an_answer_left_unread`), and on the bench.
+- **A timeout from an empty address now says so.** On a GPiBridge, `scpi_link` reads
+  the board's own "no listener" count after a timeout: "the GPiBridge found no listener
+  at GPIB 9: is the instrument on, cabled, and at that address?". A Prologix keeps no
+  such count.
+- **A1 finishes a read before it looks at what the PC sends next** (whether a Prologix
+  does the same, its manual does not say). That is why an abandoned read can still
+  answer after the next command has gone out. A firmware that abandoned a read when new input came
+  would make this simpler for every host program; for rev B's firmware, to weigh against
+  Prologix compatibility.
+- **`run.py park A1`**: the parked state after a session by hand (`park()` was there,
+  with no command of its own).
+
+### 2.13 Stage 4 on the 33120A, and firmware 0.4.3 (2026-11-18)
+A1 on the bench's 33120A at GPIB 10, its OUTPUT by coax on the SDS2104X Plus's channel 2
+(50 Ω).
+- **Everything the step checks passed** on the first run and again with the scope:
+  settings read back, 20 MHz refused, 1000 and 16,000 points uploaded (the generator's own
+  count and average), the serial poll, 44.7 `*IDN?` a second against the Prologix's 31.
+  `run.py gen A1 --scope sds2104 --channel 2` (new) also has the scope see the sine
+  (frequency, amplitude, offset) and the 16,000 points played: the record matched the
+  samples sent.
+- **What failed was "no timeout in the whole step".** First 3, from lab-instrument-control:
+  during the upload `os.write` returned 5 s before A1 had passed the 32 kB on, and the
+  read of `*OPC?` asked again every 0.8 s; each extra `++read` waited behind the data and
+  timed out. `scpi_link` now waits for the adapter's `++ver` after more than 1 kB written
+  before it reads (a fake-adapter test there fails on the old code).
+- **Then a firmware fault: a write gave up on a busy listener after 1 s**
+  (`WRITE_TIMEOUT_US`, "a listener that holds NRFD this long is not coming back"). The
+  capture of the step's last `*IDN?`: the generator took the `*` and held NRFD for over
+  1 s; A1 dropped the rest of the message. The Prologix manual gives `read_tmo_ms` to
+  `++read` and `++spoll` only and says nothing of writes; 0.4.3 waits 10 s (NI-488.2's
+  T10s) and still counts and logs a write that hits it. `test_prologix` has a listener
+  busy 3 s after a message's first byte (`sim_busy_us`, new in `sim_bus.c`), which 0.4.2
+  fails, and one busy 30 s, which must time out and be counted. A1 flashed to 0.4.3.
+- **The 33120A then stopped taking data altogether** (open). Three times it answered
+  nothing: after the end of a stage 4 run (the 16,000 points, `APPLy:DC`, `++loc`, a serial
+  poll), and once straight after Jason switched it off and on. A device clear and an IFC
+  did not free it. The capture on 0.4.3: it takes the addressing bytes (UNL, MTA, LAD 10),
+  then holds NRFD for the whole 10 s, so not one data byte goes in. Its display says
+  "Rmt" and its keys do nothing. Whether a part of A1's behaviour leads it there (the
+  dropped half-messages of 0.4.2, the rapid `++loc` and readdressing at the end of the
+  step), or this 33120A does it on its own, is the next thing to find, one step at a time
+  from a fresh power-up. The same generator ran the whole step cleanly through 0.4.2
+  twice.
+- **SCPI's `;` in `sim_bus.c`**: a message of several commands answers each, the answers
+  joined by `;` (text only: a `DATA:DAC` block or `test_wire`'s every byte value stays
+  whole). `run.py speed` sends such messages.
+
 ### 2.7 New commands, for the bring-up and after
 `++t info`, `++t lines`, `++t selftest`, `++t raw ...`, `++t identify`,
 `++t autostart`, `++t power 2`. `HANDBOOK.md` section 2 lists them.
@@ -218,10 +283,11 @@ the fix.
 | Does R21 back-power +5V_GPIB through the SN75161B's DC input with the bus off (`PIN_AUDIT.md`)? | stage 1b, TP4 bus off | A1: **no**, 0 V on a meter |
 | How fast does +5V_GPIB fall when Q1 opens (firmware waits 3 ms)? | stage 1b, the scope on TP4 | |
 | The board's current, idle and with the bus on (the descriptor asks for 300 mA) | an inline USB meter, if one is at hand | |
-| Does a free bus read as free (section 2.4)? | stages 1, 4 | |
+| Does a free bus read as free (section 2.4)? | stages 1, 4 | A1: **yes** on the E3646A's bus (one device, no controller): `++t power 1` took it. Stage 4 again |
+| A real instrument through the soldered plug | the E3646A, by hand (2026-11-18), before stage 4 | A1: **yes**. Output 2 stepped into 1.5 Ω and read back within 1 % of the same supply over RS-232; 5999 bytes out, 1540 in, no timeout, no "no listener" (`results/2026-11-18/134503_e3646a_A1.json`). So the plug is the right way round and DIO1-8, DAV, NRFD, NDAC, ATN and the supply's EOI pass. Later that day SRQ (raised by `*OPC` with `*SRE 32`, serial poll 96, released by the poll) and EOI sent by A1 (a `*IDN?` ended by EOI alone was answered) passed too (`140851_e3646a_speed_A1.json`). Not shown: IFC, REN |
 | Do the plug's pins, press-fitted, hold the board square in the base? | stage 2 | |
-| Queries per second against the Prologix's 31 | stage 4 | |
-| 16,000 points: how long, against the Prologix's 7 to 9 s? | stage 4 | |
+| Queries per second against the Prologix's 31 | stage 4 | **A1 on the 33120A: 44.7 and 44.9 `*IDN?` a second** (2026-11-18, `results/2026-11-18/142450_gen_A1.json`, `143954_gen_A1.json`). On the E3646A: `*OPC?` 29/s, `VOLT?` 24/s, `*IDN?` 16/s, all set by the supply: a capture shows A1 taking each byte in about 1 µs, the supply 90 ms to start answering `*IDN?` and 75 µs to take each byte sent to it. A1's own round trip (`++ver`) is 0.24 ms |
+| 16,000 points: how long, against the Prologix's 7 to 9 s? | stage 4 | A1: 9.6 s, then **8.1 s** once lab-instrument-control stopped re-asking during the upload (2.13). The scope saw the 16,000 points played as sent (correlation, `143954_gen_A1.json`) |
 | The Lite's low level on a real bus (0.22 V expected with one instrument) | stage 6 | |
 
 ## 4. From `DESIGN_NOTES.md` section 6, for the record

@@ -123,6 +123,74 @@ class Probe:
         self.s.close()
 
 
+class Coax:
+    """One scope channel with a generator's output on it by 50 ohm coax (stage 4: the
+    33120A's OUTPUT on the SDS2104X Plus): it only reads.  Every setting it changes (the
+    channel, the timebase, the trigger, the memory depth) goes back as found on close().
+
+    spec: 'sds2104' (the bench's SDS2104X Plus at its usual address), 'sds2104:IP' or
+    'sds2104:usb'.  The channel is set to 50 ohm: the 33120A's amplitudes assume a 50 ohm
+    load (OUTPut:LOAD 50, which stage 4 leaves set)."""
+    DEPTHS = ('200k', '100k', '2M')              # small enough to read in a second over the LAN
+
+    def __init__(self, spec='sds2104', channel=2):
+        import numpy as np
+        self.np = np
+        lic()
+        kind, _, where = spec.partition(':')
+        if kind != 'sds2104':
+            raise ValueError(f'--scope {spec!r} with a generator on it: sds2104[:IP|:usb]')
+        self.ch = int(channel)
+        held([f'SDS2104X:{self.ch}'])
+        import siglent_SDS2104X as m
+        if where == 'usb':
+            from scpi_link import usbtmc_node
+            self.s = m.SDS2104X(None, usb=usbtmc_node(m.USB_VENDOR, m.USB_PRODUCT))
+        else:
+            self.s = m.SDS2104X(where or m.DEFAULT_IP)
+        self.found = {'channel': self.s.channel(self.ch), 'timebase': self.s.timebase(),
+                      'trigger': self.s.trigger(), 'mdepth': self.s.q(':ACQuire:MDEPth?')}
+
+    def capture(self, vdiv, tdiv):
+        """One forced acquisition at vdiv volts and tdiv seconds a division: (t, volts)."""
+        np = self.np
+        self.s.channel(self.ch, on=True, scale=vdiv, offset=0.0, coupling='DC', impedance='50', probe=1,
+                       bwlimit='20M')
+        for depth in self.DEPTHS:
+            try:
+                self.s.acquire(mdepth=depth)
+                break
+            except ValueError:
+                continue
+        self.s.timebase(scale=tdiv, delay=0)
+        self.s.trigger(source=self.ch, level=0.0, slope='rising', mode='auto')
+        self.s.acquire_now()
+        t, v, _ = self.s.waveform(self.ch)
+        return np.asarray(t, float), np.asarray(v, float)
+
+    def close(self):
+        f = self.found
+        try:
+            c = f['channel']
+            self.s.channel(self.ch, on=c['on'], scale=c['scale'], offset=c['offset'], coupling=c['coupling'],
+                           impedance='50' if c['impedance'].upper().startswith('FIF') else '1M', probe=c['probe'],
+                           bwlimit=c['bwlimit'])
+            try:
+                self.s.acquire(mdepth=f['mdepth'])
+            except ValueError:
+                pass
+            self.s.timebase(scale=f['timebase'][0], delay=f['timebase'][1])
+            tr = f['trigger']
+            src = tr['source']
+            self.s.trigger(source=int(src[1:]) if src[:1] == 'C' and src[1:].isdigit() else src, level=tr['level'],
+                           slope={'RIS': 'rising', 'FAL': 'falling', 'ALT': 'alternate'}.get(tr['slope'][:3].upper()),
+                           mode={'AUTO': 'auto', 'NORM': 'normal', 'SING': 'single'}.get(tr['mode'][:4].upper()))
+            if tr['mode'][:4].upper() != 'SING':
+                self.s.run()
+        finally:
+            self.s.close()
+
+
 def hp33120a(port, address=10, timeout=10.0):
     """lab-instrument-control's own 33120A driver, through the adapter on `port`: a
     GPiBridge is driven as the Prologix is (scpi_link.Link(gpib=..., prologix=port))."""

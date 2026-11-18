@@ -1,0 +1,129 @@
+{
+ "at": "2026-11-18 13:45:03",
+ "mode": "run",
+ "adapter": "GPiBridge A1 (9F9D542A93F67D76)",
+ "gpib_address": 2,
+ "open_s": 0.155,
+ "idn": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+ "cal_count": "+21",
+ "cal_string": "\"FACTORY CAL \"\"28/Sep/2007\"",
+ "setting_s": 0.377,
+ "found": {
+  "1": {
+   "volts": 0.0,
+   "amps": 3.0,
+   "range": "P8V",
+   "ovp": 22.0,
+   "ovp_on": true,
+   "ovp_tripped": false,
+   "output": false
+  },
+  "2": {
+   "volts": 0.0,
+   "amps": 3.0,
+   "range": "P8V",
+   "ovp": 22.0,
+   "ovp_on": true,
+   "ovp_tripped": false,
+   "output": false
+  }
+ },
+ "found_measured": {
+  "1": [
+   -0.2032769,
+   -0.01053666
+  ],
+  "2": [
+   -0.006035086,
+   -0.0003190889
+  ]
+ },
+ "measure_s": 0.327,
+ "found_mode": {
+  "1": "OFF",
+  "2": "OFF"
+ },
+ "errors_before": [],
+ "steps": [
+  {
+   "set_V": 0.2,
+   "limit_A": 0.5,
+   "out2_V": 0.1939391,
+   "out2_A": 0.1285115,
+   "out2_mode": "CV",
+   "ohms": 1.509,
+   "watts": 0.025,
+   "out1_V": -0.2034799,
+   "out1_A": -0.01061376,
+   "out1_mode": "OFF"
+  },
+  {
+   "set_V": 0.5,
+   "limit_A": 0.5,
+   "out2_V": 0.4952787,
+   "out2_A": 0.3227618,
+   "out2_mode": "CV",
+   "ohms": 1.535,
+   "watts": 0.16,
+   "out1_V": -0.2032769,
+   "out1_A": -0.01061376,
+   "out1_mode": "OFF"
+  },
+  {
+   "set_V": 1.0,
+   "limit_A": 0.8,
+   "out2_V": 0.9960216,
+   "out2_A": 0.6456304,
+   "out2_mode": "CV",
+   "ohms": 1.543,
+   "watts": 0.643,
+   "out1_V": -0.2033446,
+   "out1_A": -0.01067158,
+   "out1_mode": "OFF"
+  },
+  {
+   "set_V": 1.0,
+   "limit_A": 0.3,
+   "out2_V": 0.4628727,
+   "out2_A": 0.3017688,
+   "out2_mode": "CC",
+   "ohms": 1.534,
+   "watts": 0.14,
+   "out1_V": -0.2032092,
+   "out1_A": -0.01062147,
+   "out1_mode": "OFF"
+  }
+ ],
+ "after": {
+  "1": {
+   "volts": 0.0,
+   "amps": 3.0,
+   "range": "P8V",
+   "ovp": 22.0,
+   "ovp_on": true,
+   "ovp_tripped": false,
+   "output": false
+  },
+  "2": {
+   "volts": 0.0,
+   "amps": 3.0,
+   "range": "P8V",
+   "ovp": 22.0,
+   "ovp_on": true,
+   "ovp_tripped": false,
+   "output": false
+  }
+ },
+ "after_measured": {
+  "1": [
+   -0.203322,
+   -0.0105675
+  ],
+  "2": [
+   -0.005989508,
+   -0.0002798495
+  ]
+ },
+ "errors_after": [],
+ "total_s": 16.59
+}

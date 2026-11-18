@@ -16,8 +16,18 @@
      "ok": true
     },
     "flash": {
-     "at": "2026-11-16 09:14:08",
-     "file": "results/2026-11-16/091408_flash_A1.json",
+     "at": "2026-11-18 14:45:16",
+     "file": "results/2026-11-18/144516_flash_A1.json",
+     "ok": true
+    },
+    "gen": {
+     "at": "2026-11-18 14:39:54",
+     "file": "results/2026-11-18/143954_gen_A1.json",
+     "ok": false
+    },
+    "plug": {
+     "at": "2026-11-18 13:36:50",
+     "file": "results/2026-11-18/133650_plug_A1.json",
      "ok": true
     },
     "rails": {

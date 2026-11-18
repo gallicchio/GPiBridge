@@ -1,0 +1,555 @@
+{
+ "what": "GPiBridge A1 driving the first E3646A (CAL:COUNt +21) at GPIB 2 as fast as it goes, and what goes wrong; output off except \"live\" (output 2 into 1.5 ohm, at most 1 V, 0.8 A limit). Run by Claude, 2026-11-18.",
+ "sections": {
+  "adapter_and_queries": {
+   "at": "2026-11-18 13:57:50",
+   "idn": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "adapter": "GPiBridge GPIB-USB controller version 0.4.2",
+   "status_start": {
+    "bus": "controller",
+    "bytes_out": 28714,
+    "bytes_in": 5915,
+    "timeouts": 4,
+    "no_listener": 0
+   },
+   "found": {
+    "1": "\"0.00000,3.00000\"",
+    "2": "\"0.00000,3.00000\"",
+    "sre": "+0",
+    "ese": "+0"
+   },
+   "errors_found": [],
+   "adapter_ver_roundtrip": {
+    "n": 200,
+    "per_s": 2263.6,
+    "median_ms": 0.24,
+    "p95_ms": 1.76,
+    "max_ms": 2.58
+   },
+   "adapter_status_roundtrip": {
+    "n": 100,
+    "per_s": 665.9,
+    "median_ms": 1.42,
+    "p95_ms": 1.59,
+    "max_ms": 3.18
+   },
+   "q_OPC": {
+    "n": 200,
+    "per_s": 29.3,
+    "median_ms": 34.0,
+    "p95_ms": 34.58,
+    "max_ms": 90.0
+   },
+   "q_VOLT": {
+    "n": 200,
+    "per_s": 24.0,
+    "median_ms": 41.49,
+    "p95_ms": 42.01,
+    "max_ms": 97.93
+   },
+   "q_IDN": {
+    "n": 50,
+    "per_s": 16.4,
+    "median_ms": 60.0,
+    "p95_ms": 60.16,
+    "max_ms": 115.0
+   },
+   "q_MEAS_VOLT": {
+    "n": 20,
+    "per_s": 9.8,
+    "median_ms": 102.24,
+    "p95_ms": 102.6,
+    "max_ms": 103.18
+   },
+   "q_MEAS_CURR": {
+    "n": 20,
+    "per_s": 9.7,
+    "median_ms": 103.0,
+    "p95_ms": 103.56,
+    "max_ms": 104.19
+   },
+   "status_after_query": {
+    "bus": "controller",
+    "bytes_out": 37780,
+    "bytes_in": 12313,
+    "timeouts": 4,
+    "no_listener": 0
+   },
+   "after": {
+    "1": "\"0.00000,3.00000\"",
+    "2": "\"0.00000,3.00000\"",
+    "output": "0",
+    "sre": "+0",
+    "ese": "+0",
+    "errors": []
+   },
+   "status_end": {
+    "bus": "controller",
+    "bytes_out": 38118,
+    "bytes_in": 12377,
+    "timeouts": 4,
+    "no_listener": 0
+   }
+  },
+  "settings": {
+   "at": "2026-11-18 13:59:06",
+   "idn": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "adapter": "GPiBridge GPIB-USB controller version 0.4.2",
+   "status_start": {
+    "bus": "controller",
+    "bytes_out": 38159,
+    "bytes_in": 12461,
+    "timeouts": 4,
+    "no_listener": 0
+   },
+   "found": {
+    "1": "\"0.00000,3.00000\"",
+    "2": "\"0.00000,3.00000\"",
+    "sre": "+0",
+    "ese": "+0"
+   },
+   "errors_found": [],
+   "set_write_only": {
+    "n": 200,
+    "writes_s": 4.688,
+    "until_opc_s": 7.922,
+    "per_s": 25.2,
+    "opc": "1",
+    "last_asked": 0.5,
+    "last_read": 0.5,
+    "errors": []
+   },
+   "set_with_opc": {
+    "n": 200,
+    "per_s": 21.3,
+    "median_ms": 46.99,
+    "p95_ms": 47.58,
+    "max_ms": 102.4
+   },
+   "set_then_get": {
+    "n": 500,
+    "per_s": 11.8,
+    "median_ms": 84.08,
+    "p95_ms": 86.01,
+    "max_ms": 141.19,
+    "mismatches": [],
+    "n_mismatch": 0
+   },
+   "set_get_one_message": {
+    "n": 300,
+    "per_s": 17.7,
+    "median_ms": 56.0,
+    "p95_ms": 57.07,
+    "max_ms": 112.0,
+    "n_mismatch": 0
+   },
+   "apply_then_get": {
+    "n": 200,
+    "per_s": 10.3,
+    "median_ms": 96.63,
+    "p95_ms": 98.25,
+    "max_ms": 155.0,
+    "n_mismatch": 0
+   },
+   "errors_after_set": [],
+   "status_after_set": {
+    "bus": "controller",
+    "bytes_out": 85148,
+    "bytes_in": 29365,
+    "timeouts": 8,
+    "no_listener": 0
+   },
+   "after": {
+    "1": "\"0.00000,3.00000\"",
+    "2": "\"0.00000,3.00000\"",
+    "output": "0",
+    "sre": "+0",
+    "ese": "+0",
+    "errors": []
+   },
+   "status_end": {
+    "bus": "controller",
+    "bytes_out": 85486,
+    "bytes_in": 29429,
+    "timeouts": 8,
+    "no_listener": 0
+   }
+  },
+  "srq_and_eoi": {
+   "at": "2026-11-18 14:01:08",
+   "idn": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "adapter": "GPiBridge GPIB-USB controller version 0.4.2",
+   "status_start": {
+    "bus": "controller",
+    "bytes_out": 85509,
+    "bytes_in": 29471,
+    "timeouts": 8,
+    "no_listener": 0
+   },
+   "found": {
+    "1": "\"0.00000,3.00000\"",
+    "2": "\"0.00000,3.00000\"",
+    "sre": "+0",
+    "ese": "+0"
+   },
+   "errors_found": [],
+   "eoi_alone_ends_a_message": {
+    "ok": true,
+    "reply": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+   },
+   "srq": {
+    "before": "0",
+    "after_opc": "1",
+    "spoll": "96",
+    "after_spoll": "0",
+    "after_cls": "0",
+    "ok": true
+   },
+   "status_after_lines": {
+    "bus": "controller",
+    "bytes_out": 85795,
+    "bytes_in": 29572,
+    "timeouts": 8,
+    "no_listener": 0
+   },
+   "after": {
+    "1": "\"0.00000,3.00000\"",
+    "2": "\"0.00000,3.00000\"",
+    "output": "0",
+    "sre": "+0",
+    "ese": "+0",
+    "errors": []
+   },
+   "status_end": {
+    "bus": "controller",
+    "bytes_out": 86133,
+    "bytes_in": 29636,
+    "timeouts": 8,
+    "no_listener": 0
+   }
+  },
+  "graceful_before_the_scpi_link_fix": {
+   "at": "2026-11-18 14:01:23",
+   "idn": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "adapter": "GPiBridge GPIB-USB controller version 0.4.2",
+   "status_start": {
+    "bus": "controller",
+    "bytes_out": 86156,
+    "bytes_in": 29678,
+    "timeouts": 8,
+    "no_listener": 0
+   },
+   "found": {
+    "1": "\"0.00000,3.00000\"",
+    "2": "\"0.00000,3.00000\"",
+    "sre": "+0",
+    "ese": "+0"
+   },
+   "errors_found": [],
+   "graceful": {
+    "nobody": {
+     "error": "GPIB 9 via ttyACM0: timed out after b''",
+     "s": 1.5,
+     "no_listener_added": 1,
+     "timeouts_added": 2,
+     "supply_still_answers": true
+    },
+    "read_nothing": {
+     "error": "GPIB 2 via ttyACM0: timed out after b''",
+     "s": 1.0,
+     "timeouts_added": 2,
+     "then_idn_ok": true,
+     "supply_errors": []
+    },
+    "bad_commands": {
+     "errors": [
+      "-222,\"Data out of range\"",
+      "-113,\"Undefined header\""
+     ],
+     "volt_unchanged": "+0.00000000E+00",
+     "then_idn_ok": true
+    },
+    "abandoned_query": {
+     "next_query_got": "+1.23000000E-01",
+     "ok": false,
+     "the_one_after": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+    },
+    "clear": {
+     "then_volt": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+     "supply_errors": [
+      "+1.23000000E-01"
+     ]
+    },
+    "unread_then_query": {
+     "got": "+0,\"No error\"",
+     "supply_errors": [
+      "Agilent Technologies,E3646A,0,1.7-5.0-1.0+1.23000000E-01",
+      "-410,\"Query INTERRUPTED\""
+     ]
+    },
+    "long_chain_80_cmds": {
+     "bytes": 968,
+     "reply": "+0,\"No error\"",
+     "s": 0.042,
+     "supply_errors": [
+      "+2.00000000E-01"
+     ]
+    },
+    "junk_5000_bytes": {
+     "then_idn_ok": false,
+     "s": 0.572,
+     "supply_errors": [
+      "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+      "-112,\"Program mnemonic too long\""
+     ]
+    }
+   },
+   "after": {
+    "1": "1",
+    "2": "\"0.00000,3.00000\"",
+    "output": "\"0.00000,3.00000\"",
+    "sre": "0",
+    "ese": "+0",
+    "errors": []
+   }
+  },
+  "graceful_after_the_scpi_link_fix": {
+   "at": "2026-11-18 14:08:08",
+   "idn": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "adapter": "GPiBridge GPIB-USB controller version 0.4.2",
+   "status_start": {
+    "bus": "controller",
+    "bytes_out": 93917,
+    "bytes_in": 30638,
+    "timeouts": 17,
+    "no_listener": 1
+   },
+   "found": {
+    "1": "\"0.00000,3.00000\"",
+    "2": "\"0.00000,3.00000\"",
+    "sre": "+0",
+    "ese": "+0"
+   },
+   "errors_found": [],
+   "graceful": {
+    "nobody": {
+     "error": "GPIB 9 via ttyACM0: timed out after b'' (the GPiBridge found no listener at GPIB 9: is the instrument on, cabled, and at that address?)",
+     "s": 1.5,
+     "no_listener_added": 1,
+     "timeouts_added": 2,
+     "supply_still_answers": true
+    },
+    "read_nothing": {
+     "error": "GPIB 2 via ttyACM0: timed out after b''",
+     "s": 1.31,
+     "timeouts_added": 2,
+     "then_idn_ok": true,
+     "supply_errors": []
+    },
+    "bad_commands": {
+     "errors": [
+      "-222,\"Data out of range\"",
+      "-113,\"Undefined header\""
+     ],
+     "volt_unchanged": "+0.00000000E+00",
+     "then_idn_ok": true
+    },
+    "abandoned_query": {
+     "next_query_got": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+     "ok": true
+    },
+    "timeout_mid_measure": {
+     "error": "GPIB 2 via ttyACM0: timed out after b''",
+     "next_query_got": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+     "ok": true
+    },
+    "signal_mid_query": {
+     "cut": true,
+     "next_query_got": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+     "ok": true,
+     "then_volt": "+1.23000000E-01",
+     "adapter_ver": "GPiBridge GPIB-USB controller version 0.4.2"
+    },
+    "clear": {
+     "then_volt": "+1.23000000E-01",
+     "supply_errors": [
+      "-410,\"Query INTERRUPTED\"",
+      "-420,\"Query UNTERMINATED\""
+     ]
+    },
+    "unread_then_query": {
+     "got": "Agilent Technologies,E3646A,0,1.7-5.0-1.0+1.23000000E-01",
+     "supply_errors": [
+      "-410,\"Query INTERRUPTED\""
+     ]
+    },
+    "long_chain_80_cmds": {
+     "bytes": 968,
+     "reply": "+2.00000000E-01",
+     "s": 0.89,
+     "supply_errors": []
+    },
+    "junk_5000_bytes": {
+     "then_idn_ok": true,
+     "s": 1.74,
+     "supply_errors": [
+      "-112,\"Program mnemonic too long\""
+     ]
+    },
+    "status_after": {
+     "bus": "controller",
+     "bytes_out": 100780,
+     "bytes_in": 31385,
+     "timeouts": 28,
+     "no_listener": 2
+    }
+   },
+   "after": {
+    "1": "\"0.00000,3.00000\"",
+    "2": "\"0.00000,3.00000\"",
+    "output": "0",
+    "sre": "+0",
+    "ese": "+0",
+    "errors": []
+   },
+   "status_end": {
+    "bus": "controller",
+    "bytes_out": 101118,
+    "bytes_in": 31449,
+    "timeouts": 28,
+    "no_listener": 2
+   }
+  },
+  "live": {
+   "at": "2026-11-18 14:08:51",
+   "idn": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "adapter": "GPiBridge GPIB-USB controller version 0.4.2",
+   "status_start": {
+    "bus": "controller",
+    "bytes_out": 101141,
+    "bytes_in": 31491,
+    "timeouts": 28,
+    "no_listener": 2
+   },
+   "found": {
+    "1": "\"0.00000,3.00000\"",
+    "2": "\"0.00000,3.00000\"",
+    "sre": "+0",
+    "ese": "+0"
+   },
+   "errors_found": [],
+   "live": {
+    "steps": 100,
+    "per_s": 6.64,
+    "first": [
+     [
+      0.153,
+      0.134,
+      0.08315086
+     ],
+     [
+      0.301,
+      0.847,
+      0.5281284
+     ],
+     [
+      0.448,
+      0.764,
+      0.4949909
+     ],
+     [
+      0.599,
+      0.255,
+      0.1740135
+     ],
+     [
+      0.75,
+      0.495,
+      0.3132895
+     ]
+    ],
+    "last": [
+     [
+      14.459,
+      0.741,
+      0.4805391
+     ],
+     [
+      14.604,
+      0.809,
+      0.5195468
+     ],
+     [
+      14.752,
+      0.519,
+      0.3456462
+     ],
+     [
+      14.902,
+      0.561,
+      0.360667
+     ],
+     [
+      15.052,
+      0.426,
+      0.2778524
+     ]
+    ],
+    "step_0.2_to_0.8_then_current": [
+     [
+      0.0,
+      0.4943395
+     ],
+     [
+      0.14,
+      0.5152776
+     ],
+     [
+      0.248,
+      0.5154268
+     ],
+     [
+      0.355,
+      0.515466
+     ],
+     [
+      0.462,
+      0.5155131
+     ],
+     [
+      0.569,
+      0.5155444
+     ],
+     [
+      0.676,
+      0.5155209
+     ],
+     [
+      0.783,
+      0.5155837
+     ]
+    ]
+   },
+   "after": {
+    "1": "\"0.00000,3.00000\"",
+    "2": "\"0.00000,3.00000\"",
+    "output": "0",
+    "sre": "+0",
+    "ese": "+0",
+    "errors": []
+   },
+   "status_end": {
+    "bus": "controller",
+    "bytes_out": 106688,
+    "bytes_in": 33351,
+    "timeouts": 28,
+    "no_listener": 2
+   }
+  }
+ },
+ "ramps": {
+  "fast_0.5s": "{\"event\": \"stopped\", \"why\": \"told to stop\", \"steps\": 248, \"late_steps\": 0, \"seconds\": 127.7, \"after\": {\"1\": {\"volts\": 0.0, \"amps\": 3.0, \"range\": \"P8V\", \"ovp\": 22.0, \"ovp_on\": true, \"ovp_tripped\": false, \"output\": false}, \"2\": {\"volts\": 0.0, \"amps\": 3.0, \"range\": \"P8V\", \"ovp\": 22.0, \"ovp_on\": true, \"ovp_tripped\": false, \"output\": false}}, \"errors\": []}",
+  "trigger_path_0.5s": "stopped by a signal mid-query: the cleanup read every answer one late and quit without restoring (the supply had been power-cycled by Jason meanwhile: 4 timeouts)",
+  "slow_7s": "{\"event\": \"stopped\", \"why\": \"told to stop\", \"steps\": 10, \"seconds\": 68.1}"
+ }
+}

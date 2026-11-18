@@ -208,6 +208,14 @@ static const char *scpi(const char *msg, size_t len)
     return msg;                          /* not one of the 33120A's: as before, kept for ECHO? */
 }
 
+static bool printable(const char *msg, size_t len)
+{
+    for (size_t i = 0; i < len; i++)
+        if (msg[i] < 0x20 || msg[i] > 0x7e)
+            return false;
+    return true;
+}
+
 static void answer(const char *msg, size_t len)
 {
     const char *a;
@@ -215,6 +223,35 @@ static void answer(const char *msg, size_t len)
     if (!strcmp(msg, "ECHO?")) {
         snprintf(buf, sizeof buf, "%s", sim_last_message);
         a = buf;
+    } else if (memchr(msg, ';', len) && printable(msg, len)) {
+        /* several commands in one message ("VOLT 0.2;VOLT?", "APPL:SIN 1E3,0.1,0;*OPC?"), each
+         * from the root, the answers joined by ';' as SCPI joins them.  Text only: a DATA:DAC
+         * block's binary, or test_wire's every byte value, may hold ';' and stays whole.
+         * (bringup/speed_faults.py sends such messages.) */
+        static char part[256], joined[sizeof outbuf - 2];
+        size_t at = 0, n_out = 0;
+        joined[0] = 0;
+        while (at < len) {
+            size_t k = 0;
+            while (at < len && msg[at] != ';' && k < sizeof part - 1)
+                part[k++] = msg[at++];
+            while (at < len && msg[at] != ';')
+                at++;                        /* a part too long for us: the rest of it is dropped */
+            at++;
+            part[k] = 0;
+            const char *p = part;
+            while (*p == ' ' || *p == ':')
+                p++;
+            const char *r = scpi(p, strlen(p));
+            if (r && r != p) {
+                n_out += (size_t)snprintf(joined + n_out, sizeof joined - n_out, "%s%s", n_out ? ";" : "", r);
+                if (n_out >= sizeof joined)
+                    n_out = sizeof joined - 1;
+            } else if (*p) {
+                snprintf(sim_last_message, sizeof sim_last_message, "%.255s", p);
+            }
+        }
+        a = n_out ? joined : NULL;
     } else {
         a = scpi(msg, len);
         if (a == msg) {                  /* nothing it knows: a query goes unanswered */
@@ -265,10 +302,16 @@ static void command_byte(uint8_t b)
         spoll_pending = true;
 }
 
+uint64_t sim_busy_us;                    /* after a message's first byte, not ready this long */
+static uint64_t busy_until;
+static uint64_t sim_clock(void);
+
 static void data_byte(uint8_t b, bool eoi)
 {
     sim_bytes_in++;
     sim_sum_in += b;
+    if (inlen == 0 && sim_busy_us)
+        busy_until = sim_clock() + sim_busy_us;
     if (inlen < sizeof inbuf - 1)
         inbuf[inlen++] = (char)b;
     /* a DATA:DAC block may hold line feeds: inside it only its length (or EOI) ends the message */
@@ -328,7 +371,8 @@ static void step(void)
                 dev[L_NDAC] = false;     /* accepted */
                 acc = A_WAIT_DAV_OFF;
             } else {
-                dev[L_NRFD] = false;     /* ready */
+                /* ready, unless busy with data: its GPIB chip takes ATN's command bytes regardless */
+                dev[L_NRFD] = !atn && sim_busy_us && sim_clock() < busy_until;   /* sim_busy_us = 0 ends it */
             }
         } else if (!line(L_DAV)) {
             dev[L_NDAC] = true;
@@ -387,6 +431,8 @@ static void step(void)
 /* test_wire.c has its own model of the board's wires: it says what our side
  * asserts on the bus, the instrument takes a step, and what the instrument
  * asserts comes back */
+static uint64_t sim_clock(void) { return 0; }      /* test_wire keeps no time: never busy */
+
 void sim_wire_step(const bool our[L_COUNT], uint8_t our_data, bool bus_powered, bool out[L_COUNT],
                    uint8_t *out_data)
 {
@@ -401,6 +447,7 @@ void sim_wire_step(const bool our[L_COUNT], uint8_t our_data, bool bus_powered, 
 /* ---- gpib_hal.h ------------------------------------------------------------- */
 static bool controller, talking;
 static uint64_t now;
+static uint64_t sim_clock(void) { return now; }
 bool sim_lite;
 
 bool hal_lite(void) { return sim_lite; }
@@ -503,6 +550,7 @@ void sim_reset(void)
     sim_sdc_count = sim_get_count = sim_gtl_count = 0;
     sim_present = true;
     sim_addr = SIM_ADDR;
+    sim_busy_us = busy_until = 0;
 }
 
 bool sim_ren(void) { return line(L_REN); }

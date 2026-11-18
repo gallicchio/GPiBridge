@@ -882,12 +882,86 @@ def step_prologix(ctx, label=None, device_address=5, prologix_port=None):
 
 
 # ---- stage 4: a real instrument, through lab-instrument-control's own driver ------------------------------
-def step_gen(ctx, label=None, address=10, points=16000):
+def scope_sine(t, v):
+    """A sine on a scope record: frequency from its rising crossings of the mean
+    (interpolated; one counted only after the trace has been well below the mean, so
+    noise near it adds none), then amplitude and offset by least squares at that frequency."""
+    import numpy as np
+    t, v = np.asarray(t, float), np.asarray(v, float)
+    m = v.mean()
+    low = m - 0.25 * (np.percentile(v, 95) - np.percentile(v, 5)) / 2
+    cand = np.nonzero((v[:-1] < m) & (v[1:] >= m))[0]
+    below = np.nonzero(v < low)[0]
+    keep, last = [], -1
+    for c in cand:
+        j = np.searchsorted(below, last, side='right')       # the first time below `low` after the last one kept
+        if j < len(below) and below[j] <= c:
+            keep.append(c)
+            last = c
+    i = np.asarray(keep, int)
+    if len(i) < 3:
+        return None
+    tc = t[i] + (m - v[i]) * (t[i + 1] - t[i]) / (v[i + 1] - v[i])
+    f = (len(tc) - 1) / (tc[-1] - tc[0])
+    w = 2 * np.pi * f
+    A = np.column_stack([np.ones_like(t), np.sin(w * t), np.cos(w * t)])
+    (c, s, k), *_ = np.linalg.lstsq(A, v, rcond=None)
+    return {'freq': float(f), 'vpp': float(2 * np.hypot(s, k)), 'offset': float(c)}
+
+
+def scope_arb(t, v, samples, freq):
+    """How well a scope record matches one period of `samples` played at `freq` periods a
+    second (each held for 1/(freq*len(samples)) s, as the 33120A plays them): the best
+    correlation over every start of the period inside the record, and the gain there
+    (volts per unit of sample)."""
+    import numpy as np
+    t, v = np.asarray(t, float), np.asarray(v, float)
+    dt = float(np.median(np.diff(t)))
+    n_per = int(round(1.0 / (freq * dt)))                # record points in one period
+    if len(v) < n_per + 2:
+        return None
+    s = np.asarray(samples, float)
+    tmpl = s[(np.arange(n_per) * len(s) // n_per) % len(s)]
+    tmpl = tmpl - tmpl.mean()
+    x = v - v.mean()
+    L = len(x) - n_per + 1
+    # sliding correlation of the template with every window of the record
+    nfft = 1 << int(np.ceil(np.log2(len(x) + n_per)))
+    num = np.fft.irfft(np.fft.rfft(x, nfft) * np.conj(np.fft.rfft(tmpl, nfft)), nfft)[:L]
+    c1 = np.concatenate([[0.0], np.cumsum(x)])
+    c2 = np.concatenate([[0.0], np.cumsum(x * x)])
+    wsum, wsq = c1[n_per:n_per + L] - c1[:L], c2[n_per:n_per + L] - c2[:L]
+    wvar = np.maximum(wsq - wsum * wsum / n_per, 1e-30)
+    r = num / np.sqrt(wvar * (tmpl @ tmpl))
+    k = int(np.argmax(r))
+    return {'correlation': float(r[k]), 'gain': float(num[k] / (tmpl @ tmpl)), 'start_s': float(t[k])}
+
+
+def check_on_scope(rec, coax, what, capture_args, analyse, want):
+    """One scope record of the generator's output, analysed, checked against `want`
+    ({name: (value, tolerance)}), the numbers kept in the record."""
+    try:
+        t, v = coax.capture(*capture_args)
+        got = analyse(t, v)
+    except Exception as e:                       # noqa: BLE001  a scope problem is a note, not the adapter's fault
+        rec.note(f'scope: {what}: no record ({e})')
+        return
+    rec.setdefault('scope', {})[what] = got
+    ok = got is not None and all(abs(got[k] - x) <= tol for k, (x, tol) in want.items())
+    rec.check(f'on the scope: {what}', ok, got, {k: f'{x} +- {tol}' for k, (x, tol) in want.items()})
+
+
+def step_gen(ctx, label=None, address=10, points=16000, coax=None):
     """The HP 33120A at `address`, driven by lab-instrument-control's hp_33120A.py through
     the adapter exactly as it is through the Prologix: identity, settings read back, a
     setting the generator must refuse, a binary arbitrary waveform of 1000 points and one
     of 16,000 (32 kB in one line, ended by EOI), the queries per second, a serial poll
-    and a capture of *IDN? read by sigrok's decoder."""
+    and a capture of *IDN? read by sigrok's decoder.
+
+    coax: a bench.Coax, the generator's OUTPUT on a scope channel at 50 ohm (2026-11-18:
+    the SDS2104X Plus, channel 2).  Then the scope also sees the sine (frequency,
+    amplitude, offset) and the 16,000 points (the record must match the samples sent),
+    so what the board sent is shown to come out of the generator, not only to be stored."""
     import random
     import bench
     label, b = ctx.pick(label)
@@ -907,6 +981,9 @@ def step_gen(ctx, label=None, address=10, points=16000):
         w = gen.sine(1234.5, 0.8, 0.1)
         rec.check('a sine set and read back', (w['function'], w['freq'], w['vpp'], w['offset']) == ('SIN', 1234.5, 0.8, 0.1),
                   w, 'SIN 1234.5 Hz 0.8 Vpp 0.1 V')
+        if coax is not None:                       # 0.2 V/div, 0.5 ms/div: six periods
+            check_on_scope(rec, coax, 'the sine', (0.2, 0.5e-3), scope_sine,
+                           {'freq': (1234.5, 1.0), 'vpp': (0.8, 0.04), 'offset': (0.1, 0.03)})
         w = gen.triangle(2e3, 1.0)
         rec.check('a triangle set and read back', w['function'] == 'TRI' and w['freq'] == 2e3, w, 'TRI 2 kHz')
         try:
@@ -927,6 +1004,10 @@ def step_gen(ctx, label=None, address=10, points=16000):
             rec.check(f'{n} points uploaded in one binary line ({2 * n} bytes): the count and the average the '
                       'generator computed', w.get('points') == n and abs(got - mean) < 3e-4,
                       {'points': w.get('points'), 'average': got}, {'points': n, 'average': round(mean, 6)})
+            if coax is not None and n == points:   # 0.2 V/div, 2 ms/div: two periods of 10 ms
+                check_on_scope(rec, coax, f'the {n} points played', (0.2, 2e-3),
+                               lambda t, v, x=x: scope_arb(t, v, [round(2047 * s) / 2047 for s in x], 100.0),
+                               {'correlation': (1.0, 0.1), 'gain': (0.5, 0.05)})
         t0, k = time.time(), 0
         while time.time() - t0 < (0.5 if ctx.sim else 3.0):
             gen.q('*IDN?')
