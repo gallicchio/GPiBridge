@@ -299,3 +299,50 @@ Record: `results/2026-11-18/144516_flash_A1.json`
 - ok   an RP2354A is waiting in its ROM bootloader (2e8a:000f)
 - ok   picotool load and verify, USB 3-3
 - ok   A1 (9F9D542A93F67D76) runs the new firmware
+
+## 2026-11-18 14:53:07  `gen` A1: FAIL
+
+Record: `results/2026-11-18/145307_gen_A1.json`
+
+- ok   on the bus as the controller
+- ok   *IDN? through lab-instrument-control
+- ok   a sine set and read back
+- ok   on the scope: the sine
+- ok   a triangle set and read back
+- ok   20 MHz refused, with the generator's own error
+- ok   the error queue is empty afterwards
+- ok   1000 points uploaded in one binary line (2000 bytes): the count and the average the generator computed
+- ok   16000 points uploaded in one binary line (32000 bytes): the count and the average the generator computed
+- FAIL on the scope: the 16000 points played (got {"correlation": 0.9363455941581127, "gain": 0.4483221049944027, "start_s": -0.0008174000000000011}, wanted {"correlation": "1.0 +- 0.1", "gain": "0.5 +- 0.05"})
+- ok   a serial poll answers with a status byte
+- ok   sigrok's IEEE-488 decoder reads the capture as the query and its answer
+- ok   no timeout and no "no listener" in the whole step
+- note: through the Prologix the same loop runs at about 31 a second (lab-instrument-control, gpib/gpib.md)
+
+## 2026-11-18 14:54:15  `gen` A1: PASS
+
+Record: `results/2026-11-18/145415_gen_A1.json`
+
+- ok   on the bus as the controller
+- ok   *IDN? through lab-instrument-control
+- ok   a sine set and read back
+- ok   on the scope: the sine
+- ok   a triangle set and read back
+- ok   20 MHz refused, with the generator's own error
+- ok   the error queue is empty afterwards
+- ok   1000 points uploaded in one binary line (2000 bytes): the count and the average the generator computed
+- ok   16000 points uploaded in one binary line (32000 bytes): the count and the average the generator computed
+- ok   on the scope: the 16000 points played
+- ok   a serial poll answers with a status byte
+- ok   sigrok's IEEE-488 decoder reads the capture as the query and its answer
+- ok   no timeout and no "no listener" in the whole step
+- note: through the Prologix the same loop runs at about 31 a second (lab-instrument-control, gpib/gpib.md)
+
+## 2026-11-18 14:24-14:58  the 33120A between the stage 4 runs (by hand)
+
+- 14:24 `gen` FAIL only on 3 timeouts: lab-instrument-control re-asking for `*OPC?` behind the 32 kB upload (fixed there: a read waits for the adapter after a long write).
+- 14:27 the 33120A stopped taking data (held NRFD after addressing; device clear and IFC did not free it; "Rmt", keys dead). Jason switched it off and on.
+- 14:39 `gen` with the scope: every check but two: the last `*IDN?` lost after its first byte (0.4.2 gave up on a listener busy over 1 s) and 2 timeouts. Firmware 0.4.3 (writes wait 10 s) built, simulated, flashed (14:45).
+- 14:47 nothing answered within seconds of a power-up; 14:52, after 3 minutes with A1 parked, it answered.
+- 14:53 `gen`: no timeout at all; the scope's amplitude check was too strict (fixed: alignment to a tenth of a sample, amplitude by RMS). 14:54 `gen`: PASS.
+- 14:56 `run.py speed`: its `APPLy:...;APPLy?` was read as `APPLy:APPLy?` (fixed: `;:`); no answer, re-reads for 5 s, device clear, and the 33120A stopped taking data again. A1 parked; waiting for a power cycle (`REVB.md` 2.13).

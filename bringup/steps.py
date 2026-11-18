@@ -912,8 +912,10 @@ def scope_sine(t, v):
 def scope_arb(t, v, samples, freq):
     """How well a scope record matches one period of `samples` played at `freq` periods a
     second (each held for 1/(freq*len(samples)) s, as the 33120A plays them): the best
-    correlation over every start of the period inside the record, and the gain there
-    (volts per unit of sample)."""
+    correlation over every start of the period inside the record, refined to a tenth of
+    the record's sample interval (a whole interval, 100 ns against 625 ns a point, cost up
+    to 8 % of it on the bench), and the amplitude (volts per unit of sample) from the RMS
+    of that period against the samples', which no misalignment shrinks."""
     import numpy as np
     t, v = np.asarray(t, float), np.asarray(v, float)
     dt = float(np.median(np.diff(t)))
@@ -934,7 +936,13 @@ def scope_arb(t, v, samples, freq):
     wvar = np.maximum(wsq - wsum * wsum / n_per, 1e-30)
     r = num / np.sqrt(wvar * (tmpl @ tmpl))
     k = int(np.argmax(r))
-    return {'correlation': float(r[k]), 'gain': float(num[k] / (tmpl @ tmpl)), 'start_s': float(t[k])}
+    w = x[k:k + n_per] - x[k:k + n_per].mean()
+    best = float(r[k])
+    for frac in np.linspace(-1.0, 1.0, 21):          # the period's start between record samples
+        tf = s[(((np.arange(n_per) + frac) * len(s)) // n_per).astype(int) % len(s)]
+        tf = tf - tf.mean()
+        best = max(best, float(w @ tf / np.sqrt((w @ w) * (tf @ tf))))
+    return {'correlation': best, 'amplitude': float(np.sqrt((w @ w) / (tmpl @ tmpl))), 'start_s': float(t[k])}
 
 
 def check_on_scope(rec, coax, what, capture_args, analyse, want):
@@ -1007,7 +1015,7 @@ def step_gen(ctx, label=None, address=10, points=16000, coax=None):
             if coax is not None and n == points:   # 0.2 V/div, 2 ms/div: two periods of 10 ms
                 check_on_scope(rec, coax, f'the {n} points played', (0.2, 2e-3),
                                lambda t, v, x=x: scope_arb(t, v, [round(2047 * s) / 2047 for s in x], 100.0),
-                               {'correlation': (1.0, 0.1), 'gain': (0.5, 0.05)})
+                               {'correlation': (1.0, 0.05), 'amplitude': (0.5, 0.05)})
         t0, k = time.time(), 0
         while time.time() - t0 < (0.5 if ctx.sim else 3.0):
             gen.q('*IDN?')

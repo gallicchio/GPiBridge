@@ -282,10 +282,11 @@ def test_scope_checks_of_the_generator_output():
 
     x = [round(2047 * s) / 2047 for s in rng.uniform(-1, 1, 16000)]
     t = np.arange(200_000) * 100e-9 - 10e-3                    # 20 ms at 10 MSa/s: two periods of 100 Hz
-    k = (((t + 3.3e-3) * 100.0 % 1.0) * 16000).astype(int)      # played from an arbitrary start
+    k = (((t + 3.3e-3 + 47e-9) * 100.0 % 1.0) * 16000).astype(int)   # from an arbitrary start, between samples
     played = 0.5 * np.asarray(x)[k] + rng.normal(0, 5e-3, t.size)
     m = S.scope_arb(t, played, x, 100.0)
-    assert m['correlation'] > 0.95 and abs(m['gain'] - 0.5) < 0.02
+    assert m['correlation'] > 0.97 and abs(m['amplitude'] - 0.5) < 0.02
+    assert abs(S.scope_arb(t, 0.3 * np.asarray(x)[k], x, 100.0)['amplitude'] - 0.5) > 0.15   # too small
     other = [round(2047 * s) / 2047 for s in rng.uniform(-1, 1, 16000)]
     assert S.scope_arb(t, played, other, 100.0)['correlation'] < 0.2      # other samples: no match
 

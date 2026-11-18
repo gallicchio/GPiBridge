@@ -1693,3 +1693,43 @@ and is fixed there. Next at the bench is still stage 4, the 33120A.
 - Recorded: `bringup/results/2026-11-18/140851_e3646a_speed_A1.json` and the capture,
   `BRINGUP_LOG.md`, `REVB.md` (2.12 and section 3); lab-instrument-control's
   `scpi_link.py`, `test_scpi_link.py`, `gpib/gpib.md`, `hp/hp.md`. Tests: 32 here, 30 there.
+
+## Prompt 25
+
+Commit whatever needs committing in the GPiBridge and the lab-instrument-control repos.
+Where are we with the PCB? Why do we have a REVB.md? Are there PCB changes that need to
+be made for a revB? Check in the speed and fault tests, but make sure they are clearly
+marked as such in their comment block. Is it worth moving it over to the 33120A now? I'd
+plug the OUTPUT into channel 2 of the SDS 2104X scope. You get your scripts ready to go
+and I'll move around the plugs.
+
+(During the turn:) You should be ready to go. It's plugged in. The interface is set to
+HPIB. Output goes to scope channel 2. / Do I need to unplug or power cycle anything? /
+I rebooted the function generator. / I kept it off longer this time. Try again. / The
+function generator's buttons do not work and it says "Rmt" on its screen. I will power
+cycle again. Wait 3 minutes from when you get this message before you try anything.
+
+## Response 25 2026-11-18 15:00 Claude Opus 5.5
+
+*Committed: GPiBridge 4fa583c (and a second commit for what follows); lab-instrument-control
+2b40f87 (another session's third-E3646A notes) and a98cb1f (scpi_link). Not pushed.*
+
+**Where we are:** A1 passed stage 4 on the 33120A with the scope watching (14:54). The
+generator then stopped taking data again after the speed tests sent it a query it could
+not answer (my SCPI mistake), and needs one more power cycle, with A1 parked (it is).
+
+- **The PCB:** A1 has passed stages 1, 1b, 2 and 4, and driven two instruments; nothing
+  found is a hardware fault. **No rev B change is needed.** `REVB.md` is the one list of
+  what the bring-up teaches (AGENTS.md asks for it), so a rev B, if there ever is one,
+  starts from it; it is not a plan to make one. Its hardware entries are improvements:
+  jacks on the test points, the rails on ADC pins, maybe a witness hole for the plug,
+  the SN75162B if it returns, a two-piece housing base. Still to see: the Lite (L1), two
+  boards on one cable, IFC and REN at the plug, the board's current.
+- **Speed and fault tests:** `bringup/speed_faults.py`, `run.py speed`, headed "SPEED AND
+  FAULT TESTS. Not a bring-up stage"; simulated, with a planted open DIO3.
+- **Stage 4:** 45 `*IDN?`/s (Prologix 31), 16,000 points in 8.1 s, the scope saw the sine
+  and the 16,000 points as sent, no timeout. On the way: lab-instrument-control re-asked
+  behind a long upload (fixed there), and firmware 0.4.2 gave up a write on a listener
+  busy over 1 s and dropped the rest of the message (0.4.3: 10 s; flashed).
+- **Open:** the 33120A stopping (REVB.md 2.13). Next test, from a fresh power-up: reads
+  with nothing asked, to see whether that is what wedges it.

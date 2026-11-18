@@ -260,6 +260,22 @@ A1 on the bench's 33120A at GPIB 10, its OUTPUT by coax on the SDS2104X Plus's c
   step), or this 33120A does it on its own, is the next thing to find, one step at a time
   from a fresh power-up. The same generator ran the whole step cleanly through 0.4.2
   twice.
+  - **On 0.4.3, after a power-up with A1 off the bus for 3 minutes, stage 4 passed
+    twice in a row with no timeout at all** (`145307_gen_A1.json`, `145415_gen_A1.json`),
+    the generator answering to the end. So the stops at the end of the step followed
+    0.4.2's half-messages.
+  - **The fourth stop followed a query it could not answer**: `run.py speed` sent
+    `APPLy:SINusoid f,0.1,0;APPLy?`, which SCPI reads as `APPLy:APPLy?` (after `;` a
+    header without `:` stays in the last one's subsystem; now `;:`). No answer; the library
+    asked to read again every 0.8 s for 5 s, each time addressing it to talk with nothing
+    to say; then a device clear. It has held NRFD since. So the pattern to test next,
+    from a fresh power-up: `++read` with nothing asked, once, then a few times, then
+    `*IDN?`. If that is it, the library's read-again is what to change (and with the
+    Prologix the same would happen; its read-again has run for months on this generator
+    after long uploads, though, so something about A1's way of giving up a read may
+    differ: compare captures).
+  - Its power-up takes time: one attempt within seconds of switching it on got nothing.
+    Leave it 3 minutes, A1 parked.
 - **SCPI's `;` in `sim_bus.c`**: a message of several commands answers each, the answers
   joined by `;` (text only: a `DATA:DAC` block or `test_wire`'s every byte value stays
   whole). `run.py speed` sends such messages.
