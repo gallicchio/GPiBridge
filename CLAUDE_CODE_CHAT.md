@@ -2249,7 +2249,8 @@ The 33220A through A1 at GPIB 10:
 - **Marked tested in both repositories.** REVB 1.9: the board covers the 33220A's USB and
   Ethernet sockets.
 
-The video went to `docs/video/fun_numbers.mp4`: 3.8 MB, 540x960, no sound track.
+The video went to `docs/video/fun_numbers.mp4`: 540x960, about 4 MB. I first cut the
+sound track in case it held voices; Jason asked to keep it, so it is back (AAC, 64 kb/s).
 `docs/images/fun_numbers.gif` is 2.0 MB and links to it, near the top of the README.
 
 The Advanced Lab is ready: the brief, plus the three scripts.
