@@ -25,6 +25,15 @@ personality is planned for a later firmware.
 |---|---|
 | ![top](docs/images/board_iso.png) | ![open](docs/images/housing_open.png) |
 
+**Three of them at work** (2026-11-19). A GPiBridge sets an HP 3325B synthesizer to
+12,345,678.9 Hz, pi MHz, the caesium second and other numbers. A second GPiBridge and a
+GPiBridge Lite read each number back from an HP 5316B counter and an HP 5370B time
+interval counter, live on their displays
+([`examples/fun_numbers.py`](examples/fun_numbers.py);
+[the 29 s video](docs/video/fun_numbers.mp4)):
+
+[![The fun-numbers demo: an HP 3325B and two HP counters, each on its own GPiBridge, showing the same frequencies](docs/images/fun_numbers.gif)](docs/video/fun_numbers.mp4)
+
 Inside:
 - An **RP2354A** (RP2350 with 2 MB of flash in the package). It runs the bus and USB,
   and takes new firmware over the same USB cable: `picotool` reboots it into its ROM
@@ -67,7 +76,7 @@ assembled, ordered 2026-10-06) and is being brought up. Three run now: two GPiBr
 (A1, A2) and a GPiBridge Lite (L1). From 2026-11-16 to 19 they passed the firmware, USB,
 5 V switch, receive paths, settings, failsafe and plug stages (A1 also the rails, by
 meter and scope, and stage 4 on two HP 33120A generators), and between them drove the
-five instruments [below](#instruments-it-has-driven). Still to do: two boards on one
+six instruments [below](#instruments-it-has-driven). Still to do: two boards on one
 bus, and the side-by-side with a Prologix.**
 [`bringup/STATUS.md`](bringup/STATUS.md) says where the bring-up stands,
 [`BRINGUP.md`](BRINGUP.md) is its plan, and [`bringup/REVB.md`](bringup/REVB.md) what
@@ -136,6 +145,7 @@ The prices are rough used prices in US dollars: our estimates, not quotes.
 | Agilent E3646A | DC power supply, two outputs | $250-500 | GPiBridge: lab-instrument-control's driver. Lite: [`examples/agilent_e3646a.py`](examples/agilent_e3646a.py) | GPIB or RS-232, chosen on its front panel. It sets the pace: about 25 commands a second. An answer left unread is kept and comes out with the next (error -410): read every answer. |
 | HP 3325B | synthesizer and function generator, 21 MHz | $300-600 | GPiBridge: [`examples/hp_3325b.py`](examples/hp_3325b.py) | HP's codes from before SCPI (`ID?` answers `HP3325B`). No output switch: its lowest amplitude, 1 mVpp, is as close to off as it gets. A Device Clear presets it. Its units are two letters (HZ, KH, MH): `FR 1 MHZ` raised an error. The address is set from its front panel. |
 | HP 5370B | universal time interval counter, 20 ps | $300-800 | Lite: [`examples/hp_5370b.py`](examples/hp_5370b.py), [`examples/cable_delay.py`](examples/cable_delay.py) (two cables' difference, 2.85 ns, to a few ps) | **No EOI**: read to the line feed (`++read 10`); a read that waits for EOI ends only on the adapter's timeout. No identification query and no self-check. It counts frequency on its STOP input (`IN2`), and the last of a gate time (`GT`) and a sample size (`SS`) sent wins. The address is on rear switches. |
+| Agilent 33220A | function and arbitrary waveform generator, 20 MHz | $400-800 | GPiBridge: [`examples/agilent_33220a.py`](examples/agilent_33220a.py), and its output checked on a scope | Fast: 758 queries a second, a 2000-byte waveform in 20 ms. `APPLy` switches the output on: set function, frequency and amplitude one by one. It has USB and LAN too, but **the rev A board covers both sockets**, so it is GPIB alone with a GPiBridge plugged in. |
 
 The three HP instruments have also worked together, each on its own GPiBridge:
 [`examples/three_instruments.py`](examples/three_instruments.py) steps the 3325B from

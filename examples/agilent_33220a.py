@@ -13,7 +13,8 @@ and it stops without changing anything. At the end its waveform settings are put
 they were and it returns to its front panel.
 
 The generator's GPIB address is set in its Utility menu (I/O). It also has USB and LAN,
-which stay usable alongside.
+usable alongside GPIB, but a GPiBridge rev A plugged into its GPIB socket covers both
+(2026-11-19). Run on one through a GPiBridge that day: no mismatches.
 """
 import argparse
 import math

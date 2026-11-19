@@ -175,6 +175,10 @@ need no board: they are made as they are found and listed in section 2.
 - **State:** open, Jason's decision. Claude's view: option 1, keeping the electronics,
   the firmware and the pin map as they are (with 1.8's revision ID).
 
+- **The Agilent 33220A (2026-11-19):** A1, plugged into its GPIB socket, covers its USB
+  and Ethernet sockets, so it is GPIB alone while a GPiBridge is in. Another case for a
+  board that leaves the instrument's back by the shortest way.
+
 ### 1.8 One firmware for every board and revision: make the board ID fail-safe, and carry the revision
 - **Asked:** Jason, 2026-11-19 (one firmware for GPiBridge and the Lite).
 - **Already so on rev A:** one image runs both. `hal_lite()` reads R21 on DC once, before

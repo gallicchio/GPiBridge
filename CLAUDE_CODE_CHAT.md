@@ -2185,3 +2185,71 @@ Written for later:
 - Three scripts for the Keithley 2000, SR830 and PAR 5210, being written from their
   manuals.
 - Two lessons in CLAUDE_PCB.md.
+
+## Prompt 49
+
+Before I move things, write a demo that cycles through, showing fun numbers on the
+frequency counter like 123456789, 1000....0000, etc. If you don't this every second or so,
+I can take a video.
+
+(While I worked:) Ok, my colleague is here. Make the cool demo that cycles through numbers
+like 123456789 and other round or interesting number on the big screen. / stop the fun
+number demo. I will shut off those instruments.
+
+## Response 49 2026-11-19 14:11 Claude Opus 5.5
+
+`examples/fun_numbers.py` ran in a loop, 2 s per number:
+- **The numbers:** 12,345,678.9 Hz, π MHz, e MHz, the golden ratio, the caesium second,
+  the hydrogen line, the speed of light, Avogadro's number, 2^24, 867-5309, all ones and
+  all nines.
+- **The displays:** the 3325B showed each number exactly. The 5370B agreed to about eight
+  digits. The 5316B read +1.3 ppm high.
+- **The fix it needed:** a reset to the 5316B, sent once the 3325B had answered its new
+  frequency, so the counter's gate didn't straddle the change. Without it, every other
+  reading was a blend of two numbers.
+
+Stopped on Jason's word. The 3325B was left at 1 mVpp and all three instruments on their
+front panels. The boards are parked and the claims released.
+
+The scripts for the Advanced Lab are written from their manuals, and checked against fakes
+of each instrument:
+- `keithley_2000.py`;
+- `srs_sr830.py`;
+- `par_5210.py`, whose manual gives no factory address.
+
+The brief in `bringup/handoff/` now carries each script's open questions.
+
+A second commit of these was blocked by the permission check; it waits for Jason's word.
+
+## Prompt 50
+
+The A1 unit is plugged into the 33220A, and its output is on channel 2 of the 2104X. Test
+that. Because of the size of the current PCB, it covers the ethernet and USB inputs, so
+those cannot be used simultaneously with the GPiBridge.
+
+(While I worked:) When that's all done and debugged and marked as "tested" in both repos,
+look at 20261119_135948.mp4, which is a video of the fun number demo. Shrink it to be able
+to be pushed to github. Make a gif thumbnail, and add it to the front page of the GPiBridge
+README.md. / The Advanced Lab instruments will need to wait until tomorrow or next week,
+but make sure that a test is written up and ready to go.
+
+## Response 50 2026-11-19 14:22 Claude Opus 5.5
+
+The 33220A through A1 at GPIB 10:
+- **The output-off example:** mismatches none. The 1000-point waveform took 0.02 s to
+  upload.
+- **The signal test,** with the output on the scope's channel 2:
+  - 200 alternating queries, 758 a second, every answer right.
+  - 1 kHz at 0.2 Vpp: the scope read 999.8 Hz and 0.403 Vpp.
+  - 12.345 kHz: 12,345.87 Hz, counted from the scope's record.
+  - The uploaded waveform's shape correlated 0.99998 with the points sent.
+  - Output off: 6 mV.
+- **It took four runs.** The scope's own frequency readout scatters by 0.1%, and my first
+  crossing count doubled on noise; hysteresis fixed it.
+- **Marked tested in both repositories.** REVB 1.9: the board covers the 33220A's USB and
+  Ethernet sockets.
+
+The video went to `docs/video/fun_numbers.mp4`: 3.8 MB, 540x960, no sound track.
+`docs/images/fun_numbers.gif` is 2.0 MB and links to it, near the top of the README.
+
+The Advanced Lab is ready: the brief, plus the three scripts.

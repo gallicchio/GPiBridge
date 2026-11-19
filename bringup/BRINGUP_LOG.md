@@ -729,3 +729,36 @@ Record: `results/2026-11-19/134453_flash_L1.json`
   not come within 0.5 s (by hand right after, each came in 0.2 s); the script now waits 2 s
   and lets it go. Rerun: 5316B +1.27 ppm, 5370B -0.03 ppm from 1 MHz up; mismatches none.
 - The examples switch a parked board on the bus; all three parked again at the end (14:05).
+
+## 2026-11-19 13:50-14:15  the fun-numbers demo; the Advanced Lab scripts (by hand)
+
+- `examples/fun_numbers.py` through A2 (3325B), A1 (5316B) and L1 (5370B), filmed by
+  Jason with a colleague. The 5316B's terminal readings were a blend every other number
+  until it was reset (`RE`) only after the 3325B had answered `IFR`. Stopped at 14:1x on
+  Jason's word: 3325B at 1 mVpp, all three local, boards parked, claims HP3325B, HP5316B and
+  HP5370B released.
+- `examples/keithley_2000.py`, `srs_sr830.py` and `par_5210.py` were written from their
+  manuals by three agents. They were checked against fakes of each instrument and against
+  `sim_board`, but no hardware. They are for the Advanced Lab, through
+  `bringup/handoff/advanced_lab_brief.md` (kept out of git).
+
+## 2026-11-19 14:15-14:35  A1 on the Agilent 33220A, its output on the SDS2104X (by hand)
+
+- A1 in the 33220A's GPIB socket (Jason): the board covers the generator's USB and
+  Ethernet sockets (`REVB.md` 1.9). Its OUTPUT by BNC to the SDS2104X's channel 2. Claimed
+  33220A (0.2 Vpp into 50 ohm) and SDS2104X:2; released after.
+- `*IDN?` at GPIB 10: Agilent Technologies,33220A,MY44054664,2.07-2.06-22-2 (the unit
+  lab-instrument-control drives over LAN and USB). Output off, 1 kHz sine 0.1 Vpp, 50 ohm.
+- `examples/agilent_33220a.py`: mismatches none; 1000 points (2000 bytes) in 0.02 s; 200
+  queries in 0.14 s; put back as found, output off throughout.
+- Signal test (scratch `sig_33220a.py`), with the scope's settings saved and put back:
+  - 200 alternating `FREQ?`/`VOLT?`: 758 a second, every answer right.
+  - Output on, 1 kHz 0.2 Vpp: 999.8-1000.2 Hz, 0.403 Vpp at 1 Mohm.
+  - 12.345 kHz 0.1 Vpp: 0.2025 Vpp. The scope's own FREQ read 12,360.8, then 12,331.4
+    (it scatters 0.1 %), so the frequency was counted from the record instead.
+    - My first count doubled: noise at each falling edge crossed zero upwards too.
+    - With 20 mV hysteresis: 12,345.87 Hz (+70 ppm, the scope's clock).
+  - The 1000-point waveform: shape correlated 0.99998 with the points sent.
+  - Output off: 6 mV. Error queue empty. Mismatches none (the fourth run; the first
+    three were the scope readout's scatter and my crossing count).
+- A1 parked; the 33220A back to sine 1 kHz 0.1 Vpp, output off, local.

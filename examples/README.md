@@ -14,6 +14,10 @@ else: no VISA, no driver to install.
 | [`three_instruments.py`](three_instruments.py) | One signal, two counters: the 3325B steps a sine from 1 kHz to 20 MHz, and the 5316B and the 5370B count it, each instrument on its own GPiBridge (or all on one bus). Cabling: the 3325B's MAIN SIGNAL, through a BNC tee, to the 5316B's INPUT A and the 5370B's STOP. **It puts 0.5 Vpp on the 3325B's output**, then leaves 1 mVpp. |
 | [`cable_delay.py`](cable_delay.py) | Time a BNC cable: the 3325B's square wave reaches the 5370B's START by one cable and its STOP by another, and the 5370B averages 1000 START-to-STOP intervals (to a few picoseconds). Swap the cables and give `--swapped` the first reading: the counter's own skew cancels. **It puts 0.5 Vpp on the 3325B's output**, then leaves 1 mVpp. |
 | [`agilent_33220a.py`](agilent_33220a.py) | Agilent 33220A function generator, its **output kept off** throughout (it refuses to start if the output is on): a sine set and read back setting by setting (APPLy would switch the output on), a 1000-point 14-bit waveform uploaded as a binary block and read back, the error queue, queries a second; its waveform put back. |
+| [`fun_numbers.py`](fun_numbers.py) | For a video: the 3325B steps through fun frequencies (12,345,678.9 Hz, pi MHz, the caesium second, 867-5309...) every 2 s, and the 5316B and the 5370B count each live on their displays while the terminal prints all three. Cabling as for `three_instruments.py`. **0.5 Vpp on the 3325B's output** until Ctrl-C, then 1 mVpp. |
+| [`keithley_2000.py`](keithley_2000.py) | Keithley 2000 multimeter: DC volts only, a few readings and 50 timed ones, `*TST?`, the error queue; every setting it changes put back and compared. Sources nothing; refuses if the meter is on a current function, scanning or storing. Address 16 from the factory. |
+| [`srs_sr830.py`](srs_sr830.py) | SRS SR830 lock-in: its whole setup read and explained, the outputs (`SNAP?`) and status bytes, the time constant one step and back, 50 timed `SNAP?`. Never touches the reference, sine output, sensitivity or inputs (`--read-only`: touches nothing). Address 8 from the factory. |
+| [`par_5210.py`](par_5210.py) | EG&G PAR 5210 analog lock-in: `ID`, its whole setup read and decoded, X, Y, magnitude and phase in % and volts, the status and overload bytes, a display setting and the time constant one step and back, 50 timed `X`. Never writes the oscillator, sensitivity, input or offsets. Ends its answers in CR (or CR LF) with EOI: it reads to EOI. **The manual gives no factory address**: read it on the panel (CONFIG, DYN RES/GPIB). |
 
 The three older HP instruments' scripts were written from their scanned manuals (every code
 has its page number beside it) on 2026-11-19. Run that day:
@@ -52,7 +56,20 @@ go to local), the instrument answering after every one.
   0.56 m of RG-58, give or take the 5370B's own skew. The 3325B's units are two letters
   (HZ, KH, MH): `FR 1 MHZ` set 1 MHz, then the stray `Z` raised error 700.
 - `three_instruments.py` again on 0.4.6: the same within 0.04 ppm, mismatches none.
-- `agilent_33220a.py`: not yet run.
+- `agilent_33220a.py` through A1 on a 33220A (address 10, firmware 2.07-2.06-22-2), the same
+  day: mismatches none; the 1000-point waveform (2000 bytes) in 0.02 s; 758 queries a
+  second, answers checked by alternating two. With its output on a scope (a separate
+  test): 1 kHz at 0.2 Vpp read 999.8 Hz and 0.403 Vpp at 1 Mohm, 12.345 kHz counted
+  from the scope's record as 12,345.87 Hz, the uploaded waveform's shape correlated
+  0.99998 with the points sent, and the output off read 6 mV. The board covers the
+  33220A's USB and Ethernet sockets.
+- `fun_numbers.py`, the same day: each number on all three displays; the terminal showed
+  the 5316B +1.3 ppm (12,345,694 for 12,345,678.9) and the 5370B to about eight digits
+  (12,345,678.52). Resetting the 5316B (`RE`) once the 3325B has answered its new
+  frequency keeps its gate from straddling the change; without that wait, every other
+  reading was a blend of two numbers.
+- `keithley_2000.py`, `srs_sr830.py`, `par_5210.py`: written from their manuals on
+  2026-11-19 and checked against fakes of the instruments; not yet run on one.
 
 ```sh
 cd examples
