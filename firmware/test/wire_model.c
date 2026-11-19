@@ -11,7 +11,7 @@ bool far[L_COUNT];
 uint8_t far_data;
 bool bus_terminated = true;
 uint32_t fault_open;
-bool fault_no_5v, fault_5v_stuck;
+bool fault_no_5v, fault_5v_stuck, fault_no_r21;
 int fault_short_a = -1, fault_short_b = -1;
 
 const unsigned line_pin[L_COUNT] = {
@@ -25,6 +25,8 @@ bool mcu_level(unsigned pin)
 {
     if (oe[pin])
         return ov[pin] && !outlow[pin];
+    if (pin == PIN_DC && fault_no_r21)
+        return pull[pin] > 0;            /* nothing on DC but the pad's pull */
     if (lite_board) {
         if (pin == PIN_DC)
             return false;                /* the Lite's R21: 1 k to ground, the board ID */

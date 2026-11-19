@@ -19,7 +19,9 @@
 
 typedef enum { L_EOI, L_DAV, L_NRFD, L_NDAC, L_IFC, L_REN, L_ATN, L_SRQ, L_COUNT } gpib_line;
 
-bool hal_lite(void);                    /* GPiBridge Lite (no transceivers)? Read once from the board */
+bool hal_lite(void);                    /* GPiBridge Lite (no transceivers)? Read once from the board;
+                                           also true for an unknown board: the layer that drives nothing high */
+bool hal_board_known(void);             /* R21 read high or low; false: missing or open, stay off the bus */
 void hal_init(void);                    /* pins to their safe state; transceivers unpowered */
 void hal_power(bool on);                /* 5 V to the transceivers (and the green BUS LED); the Lite: its BUS LED */
 void hal_controller(bool on);           /* DC: controller drives ATN, REN, IFC */

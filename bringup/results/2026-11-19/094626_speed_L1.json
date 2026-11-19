@@ -1,0 +1,365 @@
+{
+ "step": "speed",
+ "board": "L1",
+ "at": "2026-11-19 09:46:26",
+ "sim": false,
+ "ok": true,
+ "checks": [
+  {
+   "what": "queries: no timeout and no \"no listener\"",
+   "ok": true,
+   "got": {
+    "bus": "controller",
+    "bytes_out": 9139,
+    "bytes_in": 6485,
+    "timeouts": 0,
+    "no_listener": 0
+   },
+   "want": {
+    "bus": "controller",
+    "bytes_out": 259,
+    "bytes_in": 145,
+    "timeouts": 0,
+    "no_listener": 0
+   }
+  },
+  {
+   "what": "settings back to back: *OPC? answers and the last one holds",
+   "ok": true,
+   "got": 0.5,
+   "want": 0.5
+  },
+  {
+   "what": "every setting read back as written",
+   "ok": true,
+   "got": [],
+   "want": []
+  },
+  {
+   "what": "every setting read back in the same message",
+   "ok": true,
+   "got": [],
+   "want": []
+  },
+  {
+   "what": "the instrument logged no error for any of it",
+   "ok": true,
+   "got": [],
+   "want": []
+  },
+  {
+   "what": "a message ended by the board's EOI alone is understood",
+   "ok": true,
+   "got": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "want": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  {
+   "what": "SRQ: raised by the instrument, read in the serial poll (RQS and ESB), let go after it",
+   "ok": true,
+   "got": {
+    "before": "0",
+    "after_opc": "1",
+    "spoll": "96",
+    "after_spoll": "0"
+   },
+   "want": {
+    "before": "0",
+    "after_opc": "1",
+    "spoll": "96 or more",
+    "after_spoll": "0"
+   }
+  },
+  {
+   "what": "nobody at GPIB 30: an error that says so",
+   "ok": true,
+   "got": "GPIB 30 via ttyACM0: timed out after b'' (the GPiBridge found no listener at GPIB 30: is the instrument on, cabled, and at that address?)",
+   "want": "the GPiBridge found no listener ..."
+  },
+  {
+   "what": "nobody at GPIB 30: counted by the board",
+   "ok": true,
+   "got": null,
+   "want": null
+  },
+  {
+   "what": "nobody: the next query gets its own answer",
+   "ok": true,
+   "got": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "want": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  {
+   "what": "read_nothing: the next query gets its own answer",
+   "ok": true,
+   "got": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "want": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  {
+   "what": "refused: the next query gets its own answer",
+   "ok": true,
+   "got": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "want": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  {
+   "what": "answer_left_in_the_port: the next query gets its own answer",
+   "ok": true,
+   "got": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "want": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  {
+   "what": "timeout_mid_answer: the next query gets its own answer",
+   "ok": true,
+   "got": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "want": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  {
+   "what": "signal_mid_query: the next query gets its own answer",
+   "ok": true,
+   "got": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "want": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  {
+   "what": "the board answers its own query after all that",
+   "ok": true,
+   "got": null,
+   "want": null
+  },
+  {
+   "what": "unread_query_then_clear: the next query gets its own answer",
+   "ok": true,
+   "got": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "want": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  {
+   "what": "chain_of_80: the next query gets its own answer",
+   "ok": true,
+   "got": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "want": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  {
+   "what": "junk_5000: the next query gets its own answer",
+   "ok": true,
+   "got": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+   "want": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  {
+   "what": "the capture holds the query and its answer",
+   "ok": true,
+   "got": 58,
+   "want": "at least 46"
+  },
+  {
+   "what": "the E3646A left as it was found",
+   "ok": true,
+   "got": {
+    "1": "\"0.00000,3.00000\"",
+    "2": "\"0.00000,3.00000\""
+   },
+   "want": {
+    "nsel": "+1",
+    "1": "\"0.00000,3.00000\"",
+    "2": "\"0.00000,3.00000\""
+   }
+  }
+ ],
+ "notes": [
+  "speed and fault tests: not a bring-up stage"
+ ],
+ "address": 2,
+ "sections": [
+  "adapter",
+  "query",
+  "set",
+  "lines",
+  "faults",
+  "capture"
+ ],
+ "idn": "Agilent Technologies,E3646A,0,1.7-5.0-1.0",
+ "adapter": "GPiBridge Lite GPIB-USB controller version 0.4.5",
+ "model": "E3646A",
+ "counters_start": {
+  "bus": "controller",
+  "bytes_out": 75,
+  "bytes_in": 90,
+  "timeouts": 0,
+  "no_listener": 0
+ },
+ "found": {
+  "nsel": "+1",
+  "1": "\"0.00000,3.00000\"",
+  "2": "\"0.00000,3.00000\""
+ },
+ "errors_found": [],
+ "adapter_ver": {
+  "n": 200,
+  "per_s": 2275.8,
+  "median_ms": 0.29,
+  "p95_ms": 1.76,
+  "max_ms": 1.77
+ },
+ "adapter_status": {
+  "n": 100,
+  "per_s": 671.5,
+  "median_ms": 1.42,
+  "p95_ms": 1.59,
+  "max_ms": 1.99
+ },
+ "queries": {
+  "*OPC?": {
+   "n": 200,
+   "per_s": 25.6,
+   "median_ms": 34.01,
+   "p95_ms": 48.84,
+   "max_ms": 89.45
+  },
+  "VOLTage?": {
+   "n": 200,
+   "per_s": 23.9,
+   "median_ms": 41.44,
+   "p95_ms": 42.0,
+   "max_ms": 97.0
+  },
+  "*IDN?": {
+   "n": 50,
+   "per_s": 16.7,
+   "median_ms": 59.99,
+   "p95_ms": 60.07,
+   "max_ms": 60.51
+  },
+  "MEASure:VOLTage?": {
+   "n": 20,
+   "per_s": 9.8,
+   "median_ms": 102.41,
+   "p95_ms": 102.71,
+   "max_ms": 103.01
+  },
+  "MEASure:CURRent?": {
+   "n": 20,
+   "per_s": 9.5,
+   "median_ms": 102.94,
+   "p95_ms": 103.59,
+   "max_ms": 159.99
+  }
+ },
+ "set_back_to_back": {
+  "n": 200,
+  "writes_s": 4.691,
+  "until_opc_s": 7.883,
+  "per_s": 25.4
+ },
+ "set_with_opc": {
+  "n": 200,
+  "per_s": 21.3,
+  "median_ms": 46.99,
+  "p95_ms": 47.58,
+  "max_ms": 102.39
+ },
+ "set_then_get": {
+  "n": 500,
+  "per_s": 11.8,
+  "median_ms": 84.03,
+  "p95_ms": 85.98,
+  "max_ms": 140.0
+ },
+ "set_get_one_message": {
+  "n": 300,
+  "per_s": 17.6,
+  "median_ms": 56.43,
+  "p95_ms": 57.99,
+  "max_ms": 112.6
+ },
+ "counters_after_set": {
+  "bus": "controller",
+  "bytes_out": 48198,
+  "bytes_in": 19717,
+  "timeouts": 0,
+  "no_listener": 0
+ },
+ "srq": {
+  "before": "0",
+  "after_opc": "1",
+  "spoll": "96",
+  "after_spoll": "0"
+ },
+ "faults": {
+  "nobody": {
+   "error": "GPIB 30 via ttyACM0: timed out after b'' (the GPiBridge found no listener at GPIB 30: is the instrument on, cabled, and at that address?)",
+   "s": 1.5,
+   "next_query": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  "read_nothing": {
+   "error": "GPIB 2 via ttyACM0: timed out after b''",
+   "next_query": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  "refused": {
+   "errors": [
+    "-222,\"Data out of range\"",
+    "-113,\"Undefined header\""
+   ],
+   "next_query": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  "answer_left_in_the_port": {
+   "next_query": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  "timeout_mid_answer": {
+   "timed_out": true,
+   "next_query": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  "signal_mid_query": {
+   "cut": true,
+   "next_query": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  "unread_query_then_clear": {
+   "next_query": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  "chain_of_80": {
+   "bytes": 1208,
+   "s": 0.971,
+   "reply": "+3.07000000E-01",
+   "next_query": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  "junk_5000": {
+   "s": 0.0,
+   "next_query": "Agilent Technologies,E3646A,0,1.7-5.0-1.0"
+  },
+  "errors_left": [
+   "-410,\"Query INTERRUPTED\"",
+   "-420,\"Query UNTERMINATED\"",
+   "-112,\"Program mnemonic too long\""
+  ]
+ },
+ "counters_after_faults": {
+  "bus": "controller",
+  "bytes_out": 55033,
+  "bytes_in": 20353,
+  "timeouts": 7,
+  "no_listener": 1
+ },
+ "capture": "results/2026-11-19/094626_speed_L1_idn.vcd",
+ "handshake": {
+  "bytes": 58,
+  "span_ms": 57.97,
+  "board_accepts_a_byte": {
+   "n": 48,
+   "median_us": 0.8,
+   "max_us": 1.1
+  },
+  "device_accepts_a_byte": {
+   "n": 10,
+   "median_us": 1.5,
+   "max_us": 2.1
+  },
+  "device_talker_delay": {
+   "n": 47,
+   "median_us": 69.6,
+   "max_us": 31183.9
+  },
+  "longest_wait_ms": 31.2
+ },
+ "counters_end": {
+  "bus": "controller",
+  "bytes_out": 55349,
+  "bytes_in": 20439,
+  "timeouts": 7,
+  "no_listener": 1
+ }
+}

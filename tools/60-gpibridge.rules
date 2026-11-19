@@ -1,6 +1,9 @@
-# udev rules for GPiBridge on Linux.  Install:
-#   sudo cp tools/60-gpibridge.rules /etc/udev/rules.d/ && sudo udevadm control --reload
+# udev rules for GPiBridge on Linux.  Install, from the folder that holds this file:
+#   sudo cp 60-gpibridge.rules /etc/udev/rules.d/ && sudo udevadm control --reload
 # then unplug and plug the adapter in again.
+#
+# The same file is in GPiBridge (tools/) and in lab-instrument-control; installed from
+# either, it is the one file /etc/udev/rules.d/60-gpibridge.rules. Keep the two identical.
 #
 # 1209:0001 is pid.codes' test PID, which GPiBridge uses until it has its own.
 # - picotool may use its reset interface ("picotool reboot -f -u"), and the

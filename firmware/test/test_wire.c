@@ -210,11 +210,36 @@ int main(int argc, char **argv)
     size_t n;
 
     lite_board = argc > 1 && !strcmp(argv[1], "lite");
-    printf("%s: ", lite_board ? "GPiBridge Lite" : "GPiBridge");
+    fault_no_r21 = argc > 1 && !strcmp(argv[1], "no_r21");
+    printf("%s: ", lite_board ? "GPiBridge Lite" : fault_no_r21 ? "GPiBridge with R21 missing" : "GPiBridge");
 
     sim_reset();
     for (unsigned p = 0; p < 32; p++)
         pull[p] = -1;                    /* the pads after reset: pull-downs */
+
+    if (fault_no_r21) {
+        /* R21 missing or open (REVB.md 1.8): DC follows the pad's pull, so it reads low
+         * with the pull-down and high with the pull-up.  The board must read as unknown,
+         * get the pin layer that drives nothing high, and stay off the bus, whatever is
+         * asked of it.  (Until 0.4.5 a floating DC was read once: high meant GPiBridge.) */
+        phase = "boot";
+        gpib_stop();
+        phase = "board ID";
+        CHECK(!hal_board_known(), "R21 missing, yet the board read as %s", hal_lite() ? "the Lite" : "GPiBridge");
+        CHECK(hal_lite(), "an unknown board given the transceivers' pin layer");
+        phase = "bus refused";
+        CHECK(!gpib_start(false) && !gpib_start(true), "on the bus with R21 missing");
+        gpib_raw(RAW_CTRL_TALK);
+        CHECK(!gpib_powered() && !gpib_is_raw() && !powered(), "powered or raw with R21 missing");
+        char *argv_[] = {"selftest"};
+        said[0] = 0;
+        bringup_command(1, argv_, say, "test");
+        CHECK(strstr(said, "\"refused\"") && !gpib_powered(), "selftest with R21 missing: %s", said);
+        for (unsigned p = 0; p < 32; p++)
+            CHECK(!(oe[p] && ov[p] && !outlow[p] && (BUS_PIN_MASK & (1u << p))), "bus GPIO%u driven high", p);
+        printf("%d pin changes checked; %d failures\n", changes, failures);
+        return failures || wire_breach_count();
+    }
 
     phase = "boot";
     gpib_stop();                         /* what main() does first */

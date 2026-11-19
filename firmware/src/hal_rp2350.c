@@ -37,19 +37,46 @@ static const unsigned pin_of[L_COUNT] = {
 #define DATA_MASK (0xffu << PIN_DATA_BASE)
 
 static bool powered;
-static bool detected, lite;
+static bool detected, lite, known;
+
+/* Which board, read once, before any pin is driven: DC with the pad's pull-down, then
+ * with its pull-up (about 50 k each).  R21 outvotes both: 10 k to 3.3 V (GPiBridge)
+ * reads high both times, 1 k to ground (the Lite) low both times.  A pin that follows
+ * the pull has no R21 (missing or open): the board is unknown.  Its pins then get the
+ * Lite's layer, which drives nothing high, and gpib.c keeps it off the bus (REVB.md
+ * 1.8; until 0.4.5 a floating DC was read once, and high meant GPiBridge).  The
+ * pull-down goes first, its input buffer off while it settles: with the buffer on, a
+ * pin held only by the pull-down can sit at 2.2 V (RP2350-E9). */
+static void read_board(void)
+{
+    gpio_init(PIN_DC);
+    gpio_set_input_enabled(PIN_DC, false);
+    gpio_pull_down(PIN_DC);
+    busy_wait_us_32(200);
+    gpio_set_input_enabled(PIN_DC, true);
+    busy_wait_us_32(10);
+    bool with_pull_down = gpio_get(PIN_DC);
+    gpio_pull_up(PIN_DC);
+    busy_wait_us_32(200);
+    bool with_pull_up = gpio_get(PIN_DC);
+    gpio_disable_pulls(PIN_DC);          /* R21 alone from here on */
+    known = with_pull_down == with_pull_up;
+    lite = !known || !with_pull_up;
+}
 
 bool hal_lite(void)
 {
     if (!detected) {
-        gpio_init(PIN_DC);               /* an input: R21 alone sets its level */
-        gpio_disable_pulls(PIN_DC);
-        gpio_set_input_enabled(PIN_DC, true);
-        busy_wait_us_32(10);
-        lite = !gpio_get(PIN_DC);
+        read_board();
         detected = true;
     }
     return lite;
+}
+
+bool hal_board_known(void)
+{
+    hal_lite();
+    return known;
 }
 
 static void release_input(unsigned pin)

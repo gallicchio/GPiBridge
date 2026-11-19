@@ -31,6 +31,7 @@ run_wire: test_wire
 	mkdir -p out
 	./test_wire
 	./test_wire lite
+	./test_wire no_r21
 	python3 sigrok_check.py
 
 clean:

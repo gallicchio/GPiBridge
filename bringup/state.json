@@ -1,5 +1,32 @@
 {
  "boards": {
+  "5F4293C74E3358D8": {
+   "first_seen": "2026-11-19 09:30",
+   "kind": "GPiBridge Lite rev A",
+   "label": "L1",
+   "stages": {
+    "bare": {
+     "at": "2026-11-19 09:30:42",
+     "file": "results/2026-11-19/093042_bare_L1.json",
+     "ok": true
+    },
+    "failsafe": {
+     "at": "2026-11-19 09:53:25",
+     "file": "results/2026-11-19/095325_failsafe_L1.json",
+     "ok": true
+    },
+    "flash": {
+     "at": "2026-11-19 13:44:53",
+     "file": "results/2026-11-19/134453_flash_L1.json",
+     "ok": true
+    },
+    "plug": {
+     "at": "2026-11-19 09:31:54",
+     "file": "results/2026-11-19/093154_plug_L1.json",
+     "ok": true
+    }
+   }
+  },
   "9F9D542A93F67D76": {
    "first_seen": "2026-11-16 08:42",
    "kind": "GPiBridge rev A",
@@ -16,13 +43,13 @@
      "ok": true
     },
     "flash": {
-     "at": "2026-11-18 15:59:32",
-     "file": "results/2026-11-18/155932_flash_A1.json",
+     "at": "2026-11-19 13:44:40",
+     "file": "results/2026-11-19/134440_flash_A1.json",
      "ok": true
     },
     "gen": {
-     "at": "2026-11-18 16:51:36",
-     "file": "results/2026-11-18/165136_gen_A1.json",
+     "at": "2026-11-19 08:46:46",
+     "file": "results/2026-11-19/084646_gen_A1.json",
      "ok": true
     },
     "plug": {
@@ -33,6 +60,33 @@
     "rails": {
      "at": "2026-11-18 11:45:40",
      "file": "results/2026-11-18/114540_rails_A1.json",
+     "ok": true
+    }
+   }
+  },
+  "E9D119818C2ADDD2": {
+   "first_seen": "2026-11-19 10:21",
+   "kind": "GPiBridge rev A",
+   "label": "A2",
+   "stages": {
+    "bare": {
+     "at": "2026-11-19 12:48:51",
+     "file": "results/2026-11-19/124851_bare_A2.json",
+     "ok": true
+    },
+    "failsafe": {
+     "at": "2026-11-19 12:55:48",
+     "file": "results/2026-11-19/125548_failsafe_A2.json",
+     "ok": true
+    },
+    "flash": {
+     "at": "2026-11-19 13:44:46",
+     "file": "results/2026-11-19/134446_flash_A2.json",
+     "ok": true
+    },
+    "plug": {
+     "at": "2026-11-19 12:56:03",
+     "file": "results/2026-11-19/125603_plug_A2.json",
      "ok": true
     }
    }

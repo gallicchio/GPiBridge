@@ -91,6 +91,7 @@ settings (baud rate, flow control) do not matter: it is USB.
 | any other line | sent to the instrument with the `++eos` terminator; EOI on its last byte if `++eoi 1` |
 | `++read eoi` | read until the instrument sets EOI (or `++read_tmo_ms` passes with no byte) |
 | `++read N`, `++read` | read until byte N, or until the timeout |
+| (any read) | GPiBridge only, from 0.4.6: if nothing more from the host is waiting when a read begins, anything the host then sends ends the read, and is carried out. A Prologix has no way out of a read that an instrument keeps feeding without EOI (an HP 5316B addressed to talk). Bare CR or LF don't count; several commands sent in one write get a Prologix's read, whole |
 | `++auto 1` | read after every write |
 | `++spoll [N]`, `++srq` | serial poll; the SRQ line |
 | `++clr`, `++trg`, `++loc`, `++llo`, `++ifc` | SDC, GET, GTL, LLO, interface clear |
@@ -148,7 +149,9 @@ Nothing to install anywhere: every OS has the drivers built in.
   - PyVISA-py: `PRLGX-ASRL0::/dev/ttyACM0::INTFC`, then `GPIB0::10::INSTR`;
   - EZGPIB, with `++t compat 1` once;
   - KE5FX's GPIB Toolkit;
-  - `lab-instrument-control`.
+  - [lab-instrument-control](https://github.com/QuantumQuasars/lab-instrument-control)
+    (`Link(gpib=10, prologix='gpibridge')`);
+  - this repository's [`examples/`](examples/), pyserial alone.
 - **Different:**
   - **The port's name.** A Prologix is an FTDI chip: `/dev/ttyUSB*` on Linux,
     `/dev/cu.usbserial-*` on macOS. This adapter is a standard USB serial port:
@@ -162,7 +165,14 @@ Nothing to install anywhere: every OS has the drivers built in.
     is a controller.
 - **PyVISA-py's settings**: it sets `++read_tmo_ms 50`, too short for an instrument in
   local mode. Send `++read_tmo_ms 500` and raise the interface resource's timeout, as
-  for a Prologix (`lab-instrument-control/gpib/gpib.md`).
+  for a Prologix:
+
+  ```python
+  intf = rm.open_resource('PRLGX-ASRL0::/dev/ttyACM0::INTFC')   # Windows: PRLGX-ASRL0::COM5::INTFC
+  intf.write('++read_tmo_ms 500')     # pyvisa-py sets 50 ms and never asks again
+  intf.timeout = 30000                # this resource's timeout bounds every transfer (a long upload)
+  gen = rm.open_resource('GPIB0::10::INSTR')
+  ```
 
 ### Firmware updates and Prologix programs
 
@@ -176,7 +186,10 @@ Settings saved with `++savecfg` survive updates.
 
 - **Normal update**: `python3 tools/gpibridge.py flash firmware/build/gpibridge.uf2`. It
   asks the firmware for BOOTSEL (`++t bootsel`), then runs `picotool load -x`. Or use
-  `picotool reboot -f -u` then `picotool load -x FILE`: the reset interface does it.
+  `picotool reboot -f -u --vid 0x1209 --pid 0x0001` then `picotool load -x FILE`: the reset
+  interface does it. picotool looks only for Raspberry Pi's USB IDs unless given ours, and
+  with several boards plugged in it needs one named (`--ser SERIAL`). `-a` in place of `-u`
+  reboots into the firmware (honoured from 0.4.6).
 - **Firmware that crashes or hangs**: after three watchdog timeouts in a row, it reboots
   into BOOTSEL by itself. Load a good image. (Deliberate reboots, `++rst` or
   `++t console`, do not count.)

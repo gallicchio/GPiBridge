@@ -89,6 +89,118 @@ need no board: they are made as they are found and listed in section 2.
   the same with the transceivers on or off (section 3).
 - **The housing's screws** are M2 x 8, not M2 x 10 (Response 9).
 
+### 1.7 Holes for captive lock screws, through the board and the housing
+- **Asked:** Jason, 2026-11-19: holes all the way through, on the plug's flange holes,
+  so that a captive screw with a hand-tightened head can hold the adapter to the
+  instrument. Rev A decided against it (`DESIGN_NOTES.md` §2.6, `PLAN.md`): this
+  reverses that.
+- **Where they fall:** the flange's holes are 46.70 mm apart, on the plug's axis: board
+  (8.65, 17.5) and (55.35, 17.5).
+  - **Left**, in the USB and supply corner: R4's centre 0.6 mm away, C1 1.7, R3 2.2;
+    USB D+ and D- run 1.75-3.25 mm below it on F.Cu, the 5 V fan-out 3 mm left, and
+    LED_ERR, LED_USB, TE_DATA and TE_CTRL cross it on In2.
+  - **Right**, in the debug corner: R12 1.7 mm, J4 (the UART connector) 2.2, R11 2.7,
+    and the UART's vias and tracks.
+  - Clearing a circle of about 3 mm radius round each moves those parts and re-routes
+    those tracks; J4 (and its opening in the lid) moves the most. The board may need to
+    grow along x; the housing (62.6 mm) with it.
+- **The screw may not fit the plug's flange as it is.** NorComp's flange holes are
+  3.2 mm (its panel cutout calls 0.120"), which passes #4-40. GPIB lock screws are
+  usually M3.5 x 0.6 (black, metric) or 6-32 on older instruments, both about 3.5 mm,
+  but L-com's right-angle receptacle CIB24SRA has 4-40 screwlocks: the thread varies by
+  maker. Measure the studs on the lab's instruments first. A plug sold with GPIB screws
+  (some vertical PCB plugs come with black captive screws) would settle it; the standoff
+  height (3.50 mm) and the 24-pin pattern must stay as they are, or the generators
+  change with it.
+- **The stack a screw passes through:** the lid (its top), the board, the base's 3.5 mm
+  plate, the flange, into the instrument's lock stud. Captive in the lid (a shoulder
+  under the head, or an e-clip), with a knurled head the hand turns. The board's holes
+  unplated, with a copper keep-out, so the screw does not tie the instrument's chassis to
+  the circuit's ground; clearance 3.8-4.0 mm.
+- **For the housing:** `enclosure/build.py` gets the two holes through both parts, and
+  its 3D check gets the screw.
+- **State:** rev B, asked for.
+
+### 1.9 The housing does not fit beside the 33120A's power plug
+- **Found:** Jason, 2026-11-19: housed, the adapter was just too big to go in with the
+  generator's power cord plugged in. "On the scale of the backs of these instruments,
+  it's pretty big": rev A lies along the panel, 62.6 x 28.2 mm in the housing, against
+  the plug flange's 54.7 x 15.3 mm, so it covers about 6.5 mm above and below the
+  flange and 4 mm past each end, where instruments put other connectors.
+- **What others do** (Jason's photos):
+  - Prologix, NI GPIB-USB-HS/HS+, Keysight 82357B, ines, XyphroLabs GPIBee: a body that
+    sticks straight out from the panel, about a cable hood's size across, with captive
+    thumbscrews; several carry a stacking receptacle on the back.
+  - XyphroLabs UsbGpib V2: along the panel, like rev A, but barely taller than the
+    flange (no transceivers, like the Lite).
+  - Galvant's GPIBUSB (OSHW, 2013): a bare board on a right-angle PCB-mount plug,
+    sticking straight out.
+- **Options:**
+  1. **Straight out, on a right-angle PCB-mount plug** (they exist: Amphenol 57-series
+     style; female ones are common, male ones rarer). The board sticks out from the
+     panel; across, it need be no bigger than a GPIB cable's hood, so it fits wherever
+     a cable fits. Thumbscrews sit in the hood's ears, where cables have them, clear of
+     the board (1.7 then needs no rerouting). More board area. It sticks out 50-60 mm.
+  2. **Straight out, a solder-cup plug straddling the board's edge** (the two rows of
+     cups either side of it): probably how hood-style adapters are built; to be seen by
+     opening the bench Prologix.
+  3. **Along the panel, slimmer:** the Lite could come close to the flange's height (as
+     UsbGpib V2 does); GPiBridge's two SOIC-20W transceivers make that hard. It would
+     still not fit everywhere.
+  4. **Rev A as it is, with a spacer:** a short GPIB cable (its plug stacks), or
+     Keysight's 10834A, a GPIB-to-GPIB adapter that brings the connector out about
+     2.3 cm from the panel.
+- **The parts compared (DigiKey, 2026-11-19):**
+  - NorComp 111-024-113L001, rev A's: a **plug** (male), vertical, through-hole; $7.31
+    each, $5.83 at 25; unthreaded flange.
+  - L-com CIB24SRA: right-angle, through-hole, but a **receptacle** (female), the
+    instrument's own side: it cannot plug into an instrument, only take a cable.
+    $26.68, $21.25 at 25; 4-40 screwlocks.
+  - Right-angle **plugs** (male) for a PCB: offered by Chinese makers, not found on
+    DigiKey, LCSC or AliExpress (2026-11-19). Dongguan Fuyconn Electronics (fuyconn.com;
+    MOQ 10, 7-10 days, price on request): FUY57142 (male, right-angle PCB, "big hole",
+    rivet board lock), FUY57109A (right-angle PCB, bail locks), FUY57018C-24P (male,
+    black screws; its page says both vertical and right-angle). None gives a drawing,
+    the row spacing or the screw thread: ask, and get samples before designing.
+  - Spacers: L-com's GPIB extenders are $50-120, Keysight's 10834A similar: they defeat
+    the point of a cheap adapter.
+- **Not a drop-in on rev A's boards:** a right-angle plug's pins leave its body at the
+  board's edge, in another pattern, and the board then stands out from the panel. It
+  would be a third build variant from the same generators (as the Lite is: `if BI...`
+  branches in placement and routing), with the same schematic, parts and firmware, so
+  "some flat, some at 90 degrees" is a rev B option, not a rev A rework.
+- **To find out before choosing:** whether a GPIB cable plugs into that 33120A with its
+  power cord in (if it does, option 1 or 2 within a hood's size fits it); how the
+  bench Prologix's plug meets its board.
+- **State:** open, Jason's decision. Claude's view: option 1, keeping the electronics,
+  the firmware and the pin map as they are (with 1.8's revision ID).
+
+### 1.8 One firmware for every board and revision: make the board ID fail-safe, and carry the revision
+- **Asked:** Jason, 2026-11-19 (one firmware for GPiBridge and the Lite).
+- **Already so on rev A:** one image runs both. `hal_lite()` reads R21 on DC once, before
+  any pin is driven: 10 k to 3.3 V is GPiBridge, 1 k to ground is the Lite.
+- **What is weak:** a Lite whose R21 is missing or open leaves DC floating. If it reads
+  high, the firmware takes it for a GPiBridge and drives its pins as it would the
+  transceivers' inputs, high as well as low, into the bus through the 100 R resistors.
+  The handbook asks for a look at
+  `"board"` in `++t status`, but nothing stops it.
+- **Change, firmware (rev A too):** read DC twice, with the RP2350's pull-up and then its
+  pull-down (about 50 k). R21 outvotes both (10 k up: 2.8 V against the pull-down; 1 k
+  down: 0.07 V against the pull-up), so a pin that follows the pull has no R21: board
+  unknown, stay off the bus, light ERR, say so in `++t status`. Simulate with a fault in
+  `sim_board` first.
+- **Change, rev B hardware:** if rev B moves any signal to another GPIO, the same image
+  must also tell rev A from rev B. One spare ADC pin (GP26-29; on rev A they are boxed in
+  by the decoupling capacitors' copper) with a two-resistor divider can carry the board
+  and the revision together. Keep R21's meaning as it is, so rev A boards still read
+  right.
+- **State:** firmware done in 0.4.5 (2026-11-19, Jason: "Do the firmware fix for rev A"):
+  `hal_rp2350.c` `read_board()`; `test_wire no_r21` (103 pin changes, 0 failures; the old
+  single read fails it 8 times, three of them bus pins driven high); `--fault no_r21` in
+  `sim_board` and `test_bare_names_a_board_without_r21`; a board read as unknown gets the
+  label U1 in the bring-up. First on hardware: L1, read as the Lite (flash, bare and plug
+  PASS, 09:30-09:32). Rev B ID pin: asked for.
+
 ## 2. Firmware, changed before the first board (0.3.0 to 0.4.0, 2026-11-15)
 
 All found on a PC: by running the lab's real host software against the firmware on a
@@ -183,6 +295,19 @@ the fix.
 - **picotool reboot** right as BOOTSEL appears is not answered: the steps retry.
 - **Closing the port blocks** for as long as the board is hung (the kernel's control
   transfer waits): time from the event, not from after `close()`.
+  - **And do not close it until the board has gone** (2026-11-19). L1's first failsafe
+    "failed": each hang measured 5.2-5.4 s. Closed at once, the port leaves the kernel a
+    request the hung board never answers, and the disconnect waits for its timeout, so
+    even watching from another thread saw 5.2 s. With the port left open, L1 left USB
+    2.02 s after `++t crash` (the kernel's disconnect: 2.00 s). The step now closes it
+    once the board is gone: 2.03 s, three times; PASS. A1 had won the race on 11-16.
+  - **And watch this board, not every GPiBridge** (2026-11-19). The step took "no
+    GPiBridge on USB" for "gone": true with one board plugged in, never with three. A2,
+    beside A1 and L1, restarted in 2 s, but the step waited out its 12 s and crashed
+    parking the port it had closed. It now follows the board's serial number (its ROM
+    bootloader reports the same one) and USB device number, so a board that leaves and
+    comes back between two looks is still seen to have gone; a round it does not see
+    end is recorded, and the board reopened to park it. A2: 2.24, 2.09, 2.08 s; PASS.
 - **`++t info`** adds the watchdog's load and rate and the reason for the last start
   (`wd_load`, `wd_per_ms`, `boot_reason`, `boot_scratch4`); `++t crash` hangs on purpose.
 
@@ -360,6 +485,15 @@ A1 on the bench's 33120A at GPIB 10, its OUTPUT by coax on the SDS2104X Plus's c
   - So the first unit stops, now and then and lately more often, on its own: it was
     the last two of its lock-ups after power-ups whose lines were clean. To try it with
     the Prologix (tomorrow) for the record; meanwhile it is not a test instrument.
+  - **A third 33120A (the "bottom" one, firmware 7.0-5.0-1.0), 2026-11-19, the same A1,
+    wires and probes:** the power-up the same (IFC 151 us at 6.0 ms, then UNT, UNL); 150
+    of 150 cycles answered (30 each of back-to-back off/on, off/on, restart, go to local,
+    IFC); `tools/gpibridge.py test` 44.9 queries a second; stage 4 PASS
+    (`084646_gen_A1.json`); `run.py speed` PASS (`084704_speed_A1.json`); the power-down
+    through `run.py park` the same (0.2 V at 2.91 ms, the lines no lower than 2.33 V), and
+    it answered after it. Its firmware differs from the first unit's only in the I/O
+    processor's number (5.0 against 2.0: the three are the main, I/O and front-panel
+    processors'), which fits that unit's I/O firmware, or that unit alone, stopping.
   - 0.4.4's changes stay: a restart that does not switch the 5 V is simply better, and
     the 0.5 s off is harmless.
   - **A1's transceivers switched off (16:53, `++t power 0`):** DAV pulses twice (0.4.4's
@@ -374,6 +508,37 @@ A1 on the bench's 33120A at GPIB 10, its OUTPUT by coax on the SDS2104X Plus's c
   a rev B matter (an enable on the transceivers' bus side, or their supply held up and
   the outputs gated).
 
+### 2.15 Two firmware bugs found by an HP 5316B (A1, 2026-11-19): fixed in 0.4.6
+- **A read that never ends.** `++read eoi` ends only on EOI, and `++read` on a gap longer
+  than `++read_tmo_ms` between bytes (`read_until()`, `prologix.c`). A 5316B addressed to
+  talk sends reading after reading, ten a second in CHECK, with no EOI. So a read never
+  ended, and everything the host sent queued behind it: `++t status` unanswered for
+  minutes. Only a reboot ended it. A Prologix may well do the same (its manual gives no
+  way to end a read), but the host must always be able to get the adapter back. Fix: a
+  read ends when the host sends anything (that line is then carried out as usual), and
+  `sim_bus.c` gets a talker that never stops, to test it. `++read 10` was never at risk.
+- **`picotool reboot -f -a` never reboots a running board.** The SDK's reset interface
+  takes "reboot from flash" (`RESET_REQUEST_FLASH`) as `watchdog_reboot(0, 0, 100)`, and
+  the firmware's `usb_poll()` calls `watchdog_update()` every millisecond, which keeps
+  reloading those 100 ms. The request was not answered either (the SDK leaves the status
+  stage to the reboot), so the host saw a timeout. Unseen until now because the steps
+  only ever use `-f -u` (to BOOTSEL), which jumps to the ROM at once; that is how A1 was
+  freed (BOOTSEL, then `picotool reboot`). Fix: stop feeding the watchdog once a reboot
+  has been asked for, or take that request in our own handler and reboot as `++rst` does.
+- **0.4.6 (2026-11-19).**
+  - **The read:** if nothing more from the host waits when a read begins, anything it then
+    sends ends the read, and is carried out. Bare CR or LF don't count. If more was
+    already waiting (several commands in one write), the read is a Prologix's, whole.
+    `test_prologix` has a talker that never stops: 85 checks.
+    On A1 with the 5316B in CHECK, `++ver` sent during a `++read eoi` was answered in 60 ms.
+  - **The reboot:** `usb_poll()` sees a watchdog load under its own 2 s, and the main loop
+    reboots as `++rst` does. A read under way ends for it.
+    On A1: rebooted 0.17 s after the request when idle, 0.08 s in a never-ending read;
+    `watchdog_reset` 0 both times.
+    `picotool reboot -a -f --vid 0x1209 --pid 0x0001 --ser SERIAL` did the same.
+    Without `--vid`/`--pid`, picotool finds no GPiBridge at all.
+  - All three boards flashed (`flash` PASS).
+
 ### 2.7 New commands, for the bring-up and after
 `++t info`, `++t lines`, `++t selftest`, `++t raw ...`, `++t identify`,
 `++t autostart`, `++t power 2`. `HANDBOOK.md` section 2 lists them.
@@ -386,7 +551,7 @@ A1 on the bench's 33120A at GPIB 10, its OUTPUT by coax on the SDS2104X Plus's c
 | What does the temperature sensor's raw count say the 3.3 V rail is? | stage 1 | A1: 860-866, about 3.24 V at an assumed 40 C die. A meter reads 3.308 V, so the die was nearer 32 C |
 | How far is the crystal from 12 MHz? | stage 1 | A1: +1.4 to +1.8 ppm against `bell`'s clock |
 | How long from reset to USB configured? | stage 1, `usb_ready_ms` | A1: 940 ms through a hub three levels deep (expected 150-300); to measure on a port of the PC itself |
-| Does `picotool reboot -f -u` reach the reset interface (the udev rule)? | stage 1 | not yet: the rule is not installed. BOOTSEL itself works without it (plugdev) |
+| Does `picotool reboot -f -u` reach the reset interface (the udev rule)? | stage 1 | yes, given our USB IDs: `picotool reboot -u -f --vid 0x1209 --pid 0x0001 --ser SERIAL` put A1 in BOOTSEL, and `-a` (from 0.4.6) rebooted it into the firmware (2026-11-19). Without `--vid`/`--pid` picotool finds no board; with several plugged in it needs `--ser` |
 | Does the failsafe work: three hangs land in BOOTSEL? | `run.py failsafe` | A1: yes, each hang caught at 2.03 s |
 | Is +5V_GPIB above 4.75 V on this cable and port, bus on? | stage 1b | A1: **yes, 5.144 V**, with VBUS 5.159 V through a hub three levels deep (5.202 V with the bus off). Q1 drops 15 mV |
 | The ripple on +1V1 with the substituted L1, bus off and on | stage 1b | A1: 2.5 mV rms on and off; at most 48 mV pp (hand-held probe, full bandwidth), against 60. DC 1.10-1.11 V |

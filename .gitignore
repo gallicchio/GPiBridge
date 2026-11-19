@@ -46,3 +46,6 @@ __pycache__/
 # Questions and answers between Jason and Claude, while working.
 QUESTIONS.md
 ANSWERS.md
+
+# Notes between Claude sessions on different machines (they name rooms): kept out of git
+bringup/handoff/

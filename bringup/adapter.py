@@ -220,3 +220,19 @@ def usb_devices(vid, pid):
         except (OSError, ValueError):
             pass
     return out
+
+
+def usb_by_serial(serial):
+    """Each USB device with this serial number: ((bus, device number), (vid, pid)). A
+    GPiBridge and its RP2350 in the ROM bootloader report the same one, the chip's ID.
+    The device number is new at every enumeration, so a board that went and came back
+    between two looks is still seen to have gone."""
+    out, root = [], '/sys/bus/usb/devices'
+    for d in sorted(os.listdir(root)) if os.path.isdir(root) else []:
+        try:
+            if open(f'{root}/{d}/serial').read().strip() == serial:
+                out.append(((int(open(f'{root}/{d}/busnum').read()), int(open(f'{root}/{d}/devnum').read())),
+                            (int(open(f'{root}/{d}/idVendor').read(), 16), int(open(f'{root}/{d}/idProduct').read(), 16))))
+        except (OSError, ValueError):
+            pass
+    return out

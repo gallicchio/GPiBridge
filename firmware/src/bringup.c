@@ -153,6 +153,12 @@ static void selftest(void (*say)(const char *fmt, ...), const char *board)
 
 void bringup_command(int argc, char **argv, void (*say)(const char *fmt, ...), const char *board)
 {
+    if (!hal_board_known() && strcmp(argv[0], "lines")) {
+        /* R21 read neither high nor low: driving pins by hand needs to know which board */
+        say("{\"%s\":\"%s\",\"board\":\"%s\",\"ok\":false,\"refused\":\"R21 (DC) read neither high nor low: "
+            "missing or open?\"}", argv[0], strcmp(argv[0], "selftest") ? "refused" : "done", board);
+        return;
+    }
     if (!strcmp(argv[0], "raw")) {
         raw_command(argc, argv, say);
     } else if (!strcmp(argv[0], "selftest")) {

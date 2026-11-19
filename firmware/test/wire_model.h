@@ -41,6 +41,7 @@ extern uint32_t fault_open;              /* these GPIOs' joints to the board are
 extern bool fault_no_5v;                 /* the 5 V switch never closes */
 extern bool fault_5v_stuck;              /* the 5 V switch never opens */
 extern int fault_short_a, fault_short_b; /* two bus lines bridged at the plug (GPIO numbers; -1: none) */
+extern bool fault_no_r21;                /* R21 missing or open: DC follows the pad's own pull */
 
 bool mcu_level(unsigned pin);            /* the wire as the RP2354A and the resistors set it, the transceiver aside */
 bool powered(void);                      /* the transceivers have 5 V (the Lite: BUS_PWR_EN, its LED) */

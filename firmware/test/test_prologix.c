@@ -33,8 +33,28 @@ static void lg(const char *j)
 }
 static void inf(char *json, size_t n) { snprintf(json, n, ",\"chip_rev\":2"); }
 static void idf(int seconds) { identified = seconds; }
+/* The USB buffer, as the read sees it: `fifo` there from the start, `later` once `later_at`
+ * bytes have gone to the host (the host sending more while it waits); a reboot due once
+ * `stop_at` bytes have (REVB.md 2.15). */
+static const char *fifo = "", *later = "";
+static size_t later_at, stop_at = (size_t)-1;
+static int pk(void)
+{
+    if (*fifo)
+        return (unsigned char)*fifo;
+    return outlen >= later_at && *later ? (unsigned char)*later : -1;
+}
+static void dr(void)
+{
+    if (*fifo)
+        fifo++;
+    else if (*later)
+        later++;
+}
+static bool st(void) { return outlen >= stop_at; }
 static const prologix_io io = {.write = w, .flush = fl, .save = sv, .reboot = rb, .log = lg,
-                               .info = inf, .identify = idf};   /* no capture here */
+                               .info = inf, .identify = idf,   /* no capture here */
+                               .host_peek = pk, .host_drop = dr, .must_stop = st};
 
 static int failures, checks;
 
@@ -366,6 +386,60 @@ int main(void)
     CHECK(strstr(out, "\"selftest\":\"done\"") && strstr(out, "\"ok\":"), "++t selftest answers: %s", out);
     type("*IDN?\n++read eoi\n");
     CHECK(!strncmp(out, "HEWLETT-PACKARD", 15), "and the controller is back after it: \"%s\"", out);
+
+    /* REVB.md 2.15: a talker that never stops and sends no EOI (an HP 5316B addressed to
+     * talk). The host waits for the answer; once it sends more, the read ends there, and
+     * what it sent is carried out. */
+    fresh();
+    sim_endless = true;
+    later = "++ver\n";
+    later_at = 600;
+    type("++addr 10\n++read eoi\n");
+    CHECK(outlen >= 600 && !strncmp(out, "F      +1.00000E+07\r\n", 21) && strstr(logged, "the host sent more"),
+          "a read that never ends stops when the host sends more (%lu bytes)", (unsigned long)outlen);
+    sim_endless = false;
+    type(later);
+    later = "";
+    CHECK(!strncmp(out, "GPiBridge", 9), "and what it sent is then carried out: \"%s\"", out);
+    type("*IDN?\n++read eoi\n");
+    CHECK(!strncmp(out, "HEWLETT-PACKARD", 15), "the bus is in order after it: \"%s\"", out);
+
+    /* the same, from a host that ends its lines CR LF: the LF, still in the USB buffer when
+     * the read begins, is no news */
+    fresh();
+    sim_endless = true;
+    fifo = "\n";
+    later = "++ver\r\n";
+    later_at = 300;
+    type("++addr 10\r\n++read eoi\r");
+    CHECK(outlen >= 300 && !*fifo && strstr(logged, "the host sent more"),
+          "CR LF: the LF dropped, and the read stopped for what came after (%lu bytes)", (unsigned long)outlen);
+    sim_endless = false;
+    type(later);
+    later = "";
+    CHECK(!strncmp(out, "GPiBridge", 9), "CR LF: ++ver carried out: \"%s\"", out);
+
+    /* several commands in one write, or already in the USB buffer: a Prologix's read, whole */
+    fresh();
+    type("++addr 10\n*IDN?\n++read eoi\n++ver\n");
+    CHECK(!strncmp(out, "HEWLETT-PACKARD,33120A,0,7.0-5.0-1.0\nGPiBridge", 46),
+          "a read with more in the same write is not cut short: \"%s\"", out);
+    fresh();
+    fifo = "++ver\n";
+    type("++addr 10\n*IDN?\n++read eoi\n");
+    CHECK(!strcmp(out, "HEWLETT-PACKARD,33120A,0,7.0-5.0-1.0\n") && !strcmp(fifo, "++ver\n"),
+          "nor with more already in the USB buffer: \"%s\"", out);
+    fifo = "";
+
+    /* a reboot due (picotool reboot -f -a) ends even such a read; the rest is carried out */
+    fresh();
+    sim_endless = true;
+    stop_at = 300;
+    type("++addr 10\n++read eoi\n++ver\n");
+    CHECK(strstr(logged, "a reboot is due") && strstr(out, "GPiBridge"),
+          "a reboot due ends a read that would not: %lu bytes", (unsigned long)outlen);
+    sim_endless = false;
+    stop_at = (size_t)-1;
 
     printf("%d checks, %d failures; %lu bytes out, %lu in, %lu timeouts, %lu no-listener\n", checks, failures,
            (unsigned long)gpib_count.bytes_out, (unsigned long)gpib_count.bytes_in,

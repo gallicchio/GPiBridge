@@ -84,7 +84,8 @@ use the adapter's reset interface and keeps power managers from suspending it:
 sudo cp tools/60-gpibridge.rules /etc/udev/rules.d/ && sudo udevadm control --reload
 ```
 
-Without it everything below still works; only `picotool reboot -f -u` does not.
+Without it everything below still works; only `picotool reboot -f -u --vid 0x1209 --pid 0x0001`
+(the reset interface) does not.
 
 ---
 

@@ -2,7 +2,7 @@
  *
  * By default it looks like a Prologix: one serial port.
  *   interfaces 0-1  CDC "GPiBridge GPIB"      the Prologix "++" controller
- *   interface 2     Raspberry Pi's reset interface: `picotool reboot -u -f`
+ *   interface 2     Raspberry Pi's reset interface: `picotool reboot -u -f --vid 0x1209 --pid 0x0001`
  *                   reaches BOOTSEL with nobody touching the board
  * With "++t console 1" (saved; the device reconnects) a second serial port:
  *   interfaces 0-1  CDC "GPiBridge GPIB"
@@ -165,7 +165,7 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t langid)
     if (index == STR_SERIAL) {
         pico_get_unique_board_id_string(serial, sizeof serial);
         s = serial;
-    } else if (index == STR_PRODUCT && hal_lite()) {
+    } else if (index == STR_PRODUCT && hal_board_known() && hal_lite()) {
         s = "GPiBridge Lite USB-GPIB";       /* lsusb tells the two boards apart */
     } else if (index < sizeof strings / sizeof strings[0] && strings[index]) {
         s = strings[index];

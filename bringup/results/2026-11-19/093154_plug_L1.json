@@ -1,0 +1,36 @@
+{
+ "step": "plug",
+ "board": "L1",
+ "at": "2026-11-19 09:31:54",
+ "sim": false,
+ "ok": true,
+ "checks": [
+  {
+   "what": "the self-test (5 V switch, receive paths, joints: the Lite, pin against pin)",
+   "ok": true,
+   "got": "ok",
+   "want": "ok"
+  }
+ ],
+ "notes": [
+  "not seen from here: an open joint at the plug, two DIO lines bridged, the plug turned round"
+ ],
+ "selftest": [
+  {
+   "selftest": "float",
+   "up": "0x0000",
+   "down": "0xffff"
+  },
+  {
+   "selftest": "walk",
+   "bad": "0x0000",
+   "names": ""
+  },
+  {
+   "selftest": "done",
+   "board": "GPiBridge Lite rev A",
+   "ok": true
+  }
+ ],
+ "selftest_trouble": []
+}

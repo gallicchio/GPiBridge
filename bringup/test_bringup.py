@@ -11,6 +11,7 @@ modelled from their function tables.  What these tests show:
   upload included (skipped if lab-instrument-control is not beside this repository).
 """
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -73,6 +74,21 @@ def test_bare_faults_fail_the_self_test(tmp_path, lite, fault, names):
         assert not ctx.state['boards'][f'SIM{label}']['stages']['bare']['ok']
 
 
+def test_bare_names_a_board_without_r21(tmp_path):
+    """R21 missing on a Lite (firmware 0.4.5, REVB.md 1.8): the board reads as unknown,
+    stays off the bus whatever it is asked, and the bare step fails, saying so."""
+    b, ctx = make(tmp_path, [dict(label='L1', lite=True, faults=['no_r21'], cabled=False)])
+    with b:
+        rec = S.step_bare(ctx, 'L1')
+        assert not rec['ok']
+        assert 'R21' in json.dumps(rec), failed(rec)
+        with ctx.open('L1') as a:
+            a.cmd('++t power 2')
+            st = a.json('++t status')
+            assert st['bus'] == 'off' and st['bus_power'] == 0
+            assert 'refused' in a.ask('++t selftest')
+
+
 def test_plug_step(tmp_path):
     b, ctx = make(tmp_path, [dict(label='A1', cabled=False)])
     with b:
@@ -93,6 +109,63 @@ def test_park_after_a_session_by_hand(tmp_path):
             st = a.json('++t status')
             assert (st['bus'], st['autostart']) == ('off', 0)
             assert a.ask('++eos') == '0' and a.ask('++addr') == '1'
+
+
+# ---- tools/gpibridge.py --------------------------------------------------------------------------------------
+TOOL = Path(__file__).resolve().parent.parent / 'tools' / 'gpibridge.py'
+
+
+def tool(port, *args):
+    return subprocess.run([sys.executable, str(TOOL), '--port', port, *args],
+                          capture_output=True, text=True, timeout=120)
+
+
+def test_tool_says_when_the_board_is_parked(tmp_path):
+    """A parked board answers no query: the tool says so at once, instead of waiting out
+    21 reads and reporting an empty answer (A1 and a 33120A, 2026-11-19)."""
+    b, ctx = make(tmp_path, [dict(label='A1', instrument=True)])
+    with b:
+        with ctx.open('A1') as a:
+            a.cmd('++t power 0')
+            assert a.json('++t status')['bus'] == 'off'
+        t = time.time()
+        r = tool(b.port('A1'), 'test', '10')
+        assert r.returncode != 0 and 'the bus is off' in r.stderr
+        assert time.time() - t < 5
+
+
+def test_tool_capture_whatever_another_program_left_set(tmp_path):
+    """After bringup/adapter.py's session settings (++eot_enable 1, ++eot_char 4), a capture's
+    VCD still starts with its header: a 0x04 ahead of it made sigrok-cli refuse the file."""
+    b, ctx = make(tmp_path, [dict(label='A1', instrument=True)])
+    with b:
+        with ctx.open('A1') as a:
+            a.cmd('++t power 1')
+            a.controller()
+            assert a.ask('++eot_enable') == '1'
+        r = tool(b.port('A1'), 'capture', '10', '*IDN?', str(tmp_path / 'idn'))
+        assert r.returncode == 0, r.stderr
+        assert 'answer: HEWLETT-PACKARD,33120A' in r.stdout
+        assert (tmp_path / 'idn.vcd').read_bytes().startswith(b'$comment')
+
+
+EXAMPLES = Path(__file__).resolve().parent.parent / 'examples'
+
+
+def test_examples_on_a_parked_board(tmp_path):
+    """examples/: the 33120A one switches a parked board's bus on, sets a sine, uploads a
+    100-point waveform as a binary block (escaped) and finds no error; the E3646A one,
+    pointed at the 33120A, refuses before sending anything to it."""
+    b, ctx = make(tmp_path, [dict(label='A1', instrument=True)])
+    with b:
+        with ctx.open('A1') as a:
+            a.cmd('++t power 0')
+        run = dict(capture_output=True, text=True, timeout=60, cwd=EXAMPLES)
+        r = subprocess.run([sys.executable, 'hp_33120a.py', '--port', b.port('A1')], **run)
+        assert r.returncode == 0, r.stdout + r.stderr
+        assert 'switching it on' in r.stderr and 'points +100' in r.stdout and 'errors: none' in r.stdout
+        r = subprocess.run([sys.executable, 'agilent_e3646a.py', '--port', b.port('A1'), '--address', '10'], **run)
+        assert r.returncode != 0 and 'not an E364xA' in r.stderr
 
 
 # ---- stage 1b ----------------------------------------------------------------------------------------------

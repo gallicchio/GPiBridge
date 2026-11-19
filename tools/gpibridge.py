@@ -77,7 +77,11 @@ class Gpib:
     def __init__(self, device):
         self.s = serial.Serial(device, timeout=3)
         self.s.reset_input_buffer()
-        for c in ("++mode 1", "++auto 0", "++eoi 1", "++eos 2", "++read_tmo_ms 1000"):
+        # Not saved to flash, and every option the reads below rely on, whatever another
+        # program left set: bringup/adapter.py's ++eot_enable 1 put a 0x04 after an answer,
+        # and so at the head of a capture's VCD, which sigrok-cli then refused (2026-11-19).
+        for c in ("++savecfg 0", "++mode 1", "++auto 0", "++eoi 1", "++eos 2", "++eot_enable 0",
+                  "++read_tmo_ms 1000"):
             self.cmd(c)
 
     def cmd(self, line):
@@ -210,6 +214,15 @@ def main(argv):
     elif what in ("idn", "ask", "send", "test", "capture"):
         g = Gpib(dev["gpib"])
         addr = int(argv[1])
+        # A parked board (off the bus, ++t autostart 0) answers no query at all: say so,
+        # rather than wait out every read and report an empty answer.
+        try:
+            bus = json.loads(g.ask("++t status")).get("bus")
+        except ValueError:
+            bus = None
+        if bus == "off":
+            sys.exit("the bus is off: this board is parked. Switch it on with \"++t power 1\" "
+                     "(or bringup/run.py unpark, to have it on at every start), then try again.")
         if what == "idn":
             print(g.query(addr, "*IDN?"))
         elif what == "ask":

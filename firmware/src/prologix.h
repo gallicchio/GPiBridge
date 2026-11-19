@@ -46,6 +46,11 @@ typedef struct {
     void (*info)(char *json, size_t n);              /* ++t info: the chip's own facts, ',"key":value...' */
     void (*identify)(int seconds);                   /* ++t identify: flash the LEDs (0 stops) */
     void (*crash)(void);                             /* ++t crash: hang, to test the watchdog's failsafe */
+    /* The host's input still in the USB buffer: its next byte (-1: none), and drop that byte.
+     * A read that the host has given up on stops for it (REVB.md 2.15). NULL: never. */
+    int (*host_peek)(void);
+    void (*host_drop)(void);
+    bool (*must_stop)(void);                         /* a reboot is due: a read under way ends */
 } prologix_io;
 
 extern prologix_config prologix_cfg;

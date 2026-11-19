@@ -45,7 +45,7 @@ One USB device, 1209:0001 (pid.codes' test PID until it has its own), asking for
 | interface | name | what |
 |---|---|---|
 | CDC 0 | GPiBridge GPIB | the Prologix "++" controller: `../HANDBOOK.md` §2 |
-| vendor | Reset | Raspberry Pi's reset interface: `picotool reboot -f -u` |
+| vendor | Reset | Raspberry Pi's reset interface: `picotool reboot -f -u --vid 0x1209 --pid 0x0001` (`-a`: back into the firmware, from 0.4.6) |
 
 - **`++t console 1`** adds a second serial port, "GPiBridge console". It carries JSON
   lines out, and takes `status`, `power on`, `power off`, `reboot` and `bootsel` in. The

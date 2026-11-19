@@ -113,11 +113,43 @@ void prologix_init(const prologix_io *i, const prologix_config *saved)
     leading_plus = 0;
 }
 
-static const char *board_name(void) { return hal_lite() ? "GPiBridge Lite " GPIBRIDGE_BOARD : "GPiBridge " GPIBRIDGE_BOARD; }
+static const char *board_name(void)
+{
+    if (!hal_board_known())
+        return "unknown (R21 not read) " GPIBRIDGE_BOARD;   /* REVB.md 1.8 */
+    return hal_lite() ? "GPiBridge Lite " GPIBRIDGE_BOARD : "GPiBridge " GPIBRIDGE_BOARD;
+}
 
 /* ---------------------------------------------------------------------------- */
+/* What the host sent after the line being carried out: the rest of the input chunk, then the
+ * USB buffer.  Bare line ends are no news (the LF of a CR LF; an empty line does nothing),
+ * and once the chunk holds nothing else, those in the USB buffer are dropped. */
+static const uint8_t *rest;
+static size_t rest_n;
+
+static bool host_sent_more(void)
+{
+    for (size_t k = 0; k < rest_n; k++)
+        if (rest[k] != '\r' && rest[k] != '\n')
+            return true;
+    if (!io->host_peek)
+        return false;
+    int c;
+    while ((c = io->host_peek()) == '\r' || c == '\n')
+        io->host_drop();
+    return c >= 0;
+}
+
+/* A read ends at EOI, the character or the timeout between bytes, as on a Prologix, whose
+ * manual has no other way.  A talker that never stops (an HP 5316B sends reading after
+ * reading, with no EOI) then held the adapter for good: everything the host sent queued
+ * behind the read (REVB.md 2.15).  So: if nothing more from the host is waiting when the
+ * read begins, the host is waiting for this answer, and anything it sends meanwhile means
+ * it has given up: the read ends there, and what it sent is then carried out.  If more was
+ * already waiting (several commands in one write), the read is a Prologix's. */
 static void read_until(bool stop_eoi, int stop_char)
 {
+    bool host_can_stop = !host_sent_more(), by_host = false;
     gpib_timeout_us = (uint32_t)prologix_cfg.read_tmo_ms * 1000u;
     gpib_status s = gpib_listen_start(prologix_cfg.pad, prologix_cfg.sad);
     while (s == GPIB_OK) {
@@ -131,12 +163,20 @@ static void read_until(bool stop_eoi, int stop_char)
             out_byte(prologix_cfg.eot_char);
         if ((eoi && stop_eoi) || (stop_char >= 0 && b == stop_char))
             break;
+        if ((io->must_stop && io->must_stop()) || (host_can_stop && host_sent_more())) {
+            by_host = true;
+            break;
+        }
     }
     out_flush();
-    gpib_idle();
-    /* a read that ends in a timeout is how "++read" (no argument) is meant to end */
-    if (s != GPIB_OK && !(s == GPIB_TIMEOUT && !stop_eoi && stop_char < 0))
+    gpib_idle();                         /* UNT, UNL: the talker cut off is told to stop */
+    if (by_host) {
+        if (io->log)
+            io->log("{\"event\":\"read\",\"ended\":\"the host sent more, or a reboot is due\"}");
+    } else if (s != GPIB_OK && !(s == GPIB_TIMEOUT && !stop_eoi && stop_char < 0)) {
+        /* a read that ends in a timeout is how "++read" (no argument) is meant to end */
         note("read", s);
+    }
 }
 
 /* The buffer is full and the line goes on: a real Prologix passes bytes on as
@@ -298,8 +338,11 @@ static void tether_command(void)
         if (!v)
             gpib_stop();
         else if (!gpib_start(v == 2) && io->log)
-            io->log("{\"event\":\"bus\",\"error\":\"another controller holds ATN, REN or IFC: staying off the "
-                    "bus (++t power 2 takes it regardless)\"}");
+            io->log(!hal_board_known()
+                    ? "{\"event\":\"bus\",\"error\":\"R21 (DC) read neither high nor low: which board is not "
+                      "known, so staying off the bus\"}"
+                    : "{\"event\":\"bus\",\"error\":\"another controller holds ATN, REN or IFC: staying off the "
+                      "bus (++t power 2 takes it regardless)\"}");
     } else if (!strcmp(what, "ren") && argc > 2 && number(argv[2], 0, 1, &v)) {
         gpib_ren(v);
     } else if (!strcmp(what, "compat") && argc > 2 && number(argv[2], 0, 1, &v)) {
@@ -455,7 +498,7 @@ static void do_command(void)
         if (cfg->compat_ver)
             reply("Prologix GPIB-USB Controller version 6.107");
         else
-            reply("%s GPIB-USB controller version %s", hal_lite() ? "GPiBridge Lite" : "GPiBridge",
+            reply("%s GPIB-USB controller version %s", hal_board_known() && hal_lite() ? "GPiBridge Lite" : "GPiBridge",
                   GPIBRIDGE_VERSION);
     } else if (!strcmp(c, "help")) {
         reply("++addr [pad [sad]] | ++auto [0|1] | ++clr | ++eoi [0|1] | ++eos [0-3] | ++eot_enable [0|1] | "
@@ -517,7 +560,10 @@ void prologix_input(const uint8_t *data, size_t n)
         if (c == ESC) {
             esc = true;
         } else if (c == '\r' || c == '\n') {
+            rest = data + i + 1;         /* what follows, for a read to look at */
+            rest_n = n - i - 1;
             end_of_line();
+            rest_n = 0;
         } else if (c == '+') {
             if (command) {
                 keep(c);

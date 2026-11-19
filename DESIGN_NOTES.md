@@ -218,8 +218,8 @@ would bottom out. The counterbores are 4.3 mm, wide enough for an M2 pan head (u
 
 Four independent ways in, from the most to the least convenient:
 1. **`tools/gpibridge.py flash`**: it asks for BOOTSEL through the console port, then
-   runs `picotool load`. Alternatively, `picotool reboot -f -u` uses the USB reset
-   interface.
+   runs `picotool load`. Alternatively, `picotool reboot -f -u --vid 0x1209 --pid 0x0001`
+   uses the USB reset interface (picotool needs our USB IDs to find it).
 2. **Three watchdog resets in a row** start the ROM bootloader by themselves, so an
    image that crashes can always be replaced over USB.
 3. **The debug connectors**, for when the firmware runs but its USB does not: the UART
@@ -404,7 +404,7 @@ done about it:
 | "Prologix emulation is a dead end: VISA wants USBTMC, like xyphro's UsbGpib." | Agreed for VISA users. USBTMC is next in the firmware, and needs no board change. The "++" set came first because the lab's scripts and PyVISA-py already speak it. |
 | "No galvanic isolation: USB ground now ties the PC to every instrument's chassis." | True of the Prologix and UsbGpib too. For microvolt work, put a full-speed USB isolator (ADuM3160 or ADuM4160 type) in the cable. Building one in would double the board. |
 | "linux-gpib cannot use it." | True: linux-gpib has no driver for "++" adapters. |
-| "No jack screws." | They cannot fit (§2.6); UsbGpib V2 holds by friction too. |
+| "No jack screws." | Not on rev A (§2.6); UsbGpib V2 holds by friction too. Rev B will have holes for captive screws, and needs a plug whose flange passes M3.5 (`bringup/REVB.md` 1.7). |
 | "No ESD array on USB." | As on Raspberry Pi's own boards. A rev B candidate (USBLC6) if boards die. |
 | "The SN75161B is scarce." | Item 3 of §4. |
 | "Bit-banged C will be slow for big trace dumps." | Measured at stage 5; the pins are already laid out for PIO. |

@@ -4,7 +4,7 @@
  *   USB serial "GPiBridge console"  optional (++t console 1): JSON lines,
  *                                   logs out, a few commands in; the same
  *                                   lines always go out on the UART (J4)
- *   USB reset interface              `picotool reboot -u -f` reaches BOOTSEL
+ *   USB reset interface              `picotool reboot -u -f --vid 0x1209 --pid 0x0001` reaches BOOTSEL
  *   core 1                           the bus capture, when asked (capture.h)
  *
  * Failsafes:
@@ -150,10 +150,22 @@ static uint64_t traffic_at, error_at, usb_ready_us, identify_until;
 static bool crashed_before;              /* this start followed a watchdog timeout: a hang or a fault */
 static uint32_t boot_reason, boot_scratch4; /* WATCHDOG REASON (1 timer, 2 force) and SCRATCH4 as this start found them */
 
+#define WATCHDOG_MS 2000
+static bool reboot_asked;                /* by the reset interface: "reboot from flash" */
+static bool watching;                    /* our watchdog is running (main(), after USB starts) */
+
 void usb_poll(void)
 {
     tud_task();
     watchdog_update();
+    /* The Pico SDK's reset interface takes "reboot from flash" (picotool reboot -f -a) as
+     * watchdog_reboot(0, 0, 100 ms), and the feed above would reload those 100 ms for ever:
+     * the board never rebooted (A1, 2026-11-19; REVB.md 2.15).  Seen as a load under ours,
+     * it becomes our own orderly reboot, from the main loop; a read under way ends for it. */
+    if (watching && !reboot_asked && (watchdog_hw->ctrl & WATCHDOG_CTRL_TIME_BITS) < WATCHDOG_MS * 500u) {
+        reboot_asked = true;
+        watchdog_enable(WATCHDOG_MS, true);   /* our 2 s again, until then */
+    }
 }
 
 static void gpib_write_host(const uint8_t *data, size_t n)
@@ -209,7 +221,12 @@ static void log_json(const char *json)
     console_line(json);
 }
 
-static const char *board_name(void) { return hal_lite() ? "GPiBridge Lite " GPIBRIDGE_BOARD : "GPiBridge " GPIBRIDGE_BOARD; }
+static const char *board_name(void)
+{
+    if (!hal_board_known())
+        return "unknown (R21 not read) " GPIBRIDGE_BOARD;   /* REVB.md 1.8 */
+    return hal_lite() ? "GPiBridge Lite " GPIBRIDGE_BOARD : "GPiBridge " GPIBRIDGE_BOARD;
+}
 
 /* the fields ++t status and the console's status add to the bus counters */
 static void status_extra(char *json, size_t n)
@@ -298,6 +315,20 @@ static void capture_command(const char *what)
     host_line(s);
 }
 
+static int host_peek(void)
+{
+    uint8_t c;
+    return tud_cdc_n_peek(CDC_GPIB, &c) ? c : -1;
+}
+
+static void host_drop(void)
+{
+    uint8_t c;
+    tud_cdc_n_read(CDC_GPIB, &c, 1);
+}
+
+static bool must_stop(void) { return reboot_asked; }
+
 static const prologix_io io = {
     .write = gpib_write_host,
     .flush = gpib_flush_host,
@@ -309,6 +340,9 @@ static const prologix_io io = {
     .info = info,
     .identify = identify,
     .crash = crash,
+    .host_peek = host_peek,
+    .host_drop = host_drop,
+    .must_stop = must_stop,
 };
 
 /* the console's commands: one word a line */
@@ -364,6 +398,11 @@ static void bus_start(void)
         return;
     }
     error_at = time_us_64();
+    if (!hal_board_known()) {
+        console_line("{\"event\":\"bus\",\"error\":\"R21 (DC) read neither high nor low: which board is not "
+                     "known, so staying off the bus (REVB.md 1.8)\"}");
+        return;
+    }
     console_line("{\"event\":\"bus\",\"error\":\"another controller holds ATN, REN or IFC: staying off the bus "
                  "(++t power 2 takes it regardless)\"}");
 }
@@ -419,7 +458,7 @@ static void leds(void)
     else
         usb = t - traffic_at > 50000;    /* on, off for a moment on traffic */
     gpio_put(PIN_LED_USB, usb);
-    gpio_put(PIN_LED_ERR, error_at && t - error_at < 1000000);
+    gpio_put(PIN_LED_ERR, !hal_board_known() || (error_at && t - error_at < 1000000));   /* steady: R21 not read */
 }
 
 /* ---- start -------------------------------------------------------------------- */
@@ -449,7 +488,8 @@ int main(void)
     gpib_stop();                         /* pins released, transceivers off until USB is configured */
     usb_descriptors_init(prologix_cfg.console_port);
     tusb_init();
-    watchdog_enable(2000, true);
+    watchdog_enable(WATCHDOG_MS, true);
+    watching = true;                     /* before this, usb_poll() runs with no watchdog of ours */
     printf("{\"event\":\"boot\",\"version\":\"%s\",\"board\":\"%s\",\"at_ms\":%lu}\n", GPIBRIDGE_VERSION,
            board_name(), (unsigned long)(time_us_64() / 1000));
 
@@ -462,6 +502,8 @@ int main(void)
             traffic_at = time_us_64();
             prologix_input(buf, n);
         }
+        if (reboot_asked)
+            do_reboot(false);            /* picotool reboot -f -a, seen in usb_poll() */
         console_poll();
         settings_poll();
         leds();

@@ -1869,3 +1869,319 @@ GPiBridge, lab-instrument-control and OpticsPCBs' `CLAUDE_PCB.md`. Listed the in
 GPIB instruments by rough used price (my estimates, not looked up). The four wires can come
 off now. Suggested the order: the bench's E3632A, the 33220A (GPIB and LAN, so a stall can
 be told from a hang), then stage 5's Keithley 2000 and SR830.
+
+## Prompt 36
+
+If you need manuals for any of these, try to get them and put them in the untracked
+manuals directory. If you can't find what you need, make a list of items and links that you
+cannot access. I'll try to get them tomorrow.
+
+## Response 36 2026-11-18 20:16 Claude Opus 5.5
+
+Most were already in lab-instrument-control's `manuals_untracked/`, 13 of them under their
+bare download names from 2026-10-05: identified and renamed by its convention (3325B,
+5316B, 8656B service, 8662A, 8665B, 8590E guides, 8970B, TC200, 500B, LDX-3500B).
+Downloaded from Keysight: the 8970B operating manual (the folder had only its viewer page)
+and two 8656B operation manuals. Every GPIB instrument on the list now has a manual with its
+commands, except an original (non-B) LDX-3525, whose older guide is not downloadable
+(manuals.online refuses scripts). Removing four duplicate copies was refused by the
+permission check: listed in `MANUALS.md` for Jason. `MANUALS.md` and `MANUALS_WANTED.md`
+updated, not committed.
+
+## Prompt 37
+
+The "The only copy I found is on manuals.online" link gives me a 404 error. I added more
+manuals. Check for byte-identical duplicates. Delete what you need to delete to keep only
+one copy.
+
+## Response 37 2026-11-19 08:38 Claude Opus 5.5
+
+Five of the new files were byte-identical to ones filed yesterday: deleted, each after a
+fresh `cmp`. Also deleted the two same-content copies and the 8970B viewer page listed
+yesterday. No two files in the folder are the same now. Filed the six new ones (the 8656B
+quick reference; 8970B supplements, a GPIB example, the security note, the Y-factor note).
+The old LDX-3500 guide is on ManualsLib, and its contents have no remote chapter: the
+original LDX-3525 probably has no GPIB at all (inventory row changed to "?"). Not committed.
+
+## Prompt 38
+
+The GPiBridge is now plugged into the "bottom" 33120A (the third one on my desk here). I set
+the interface to HPIB. Check everything you can with that one. The 4 wires are still on the
+scope. If that checks out, I'll desolder the leads and try other instruments.
+
+(While I worked:) Keep going, but when you're done, while I'm desoldering the leads, I want
+you to make sure there is a clean separation between the things in GPiBridge and the things
+in lab-instrument-control. GPiBridge should contain the PCB, firmware, udev rules, and
+enough information for someone to get up and running with this under Linux, Mac, or
+Windows. Python examples for the two instruments we've tested so far are good. The code
+here should be independent of lab-instrument-control and be at a much lower level. There
+could and should be a link to the public lab-instrument-control repo, though, for people
+who want to work at that higher level. The lab-instrument-control repo should also be
+standalone in the sense that someone with a working GPiBridge should not need to also
+download or look at the GPiBridge repo to use it. The lab-instrument-control repo should
+also have the udev rule and installation instructions. The code here should treat the
+GPiBridge as one of several drop-in hardware USB-to-GPIB interfaces to these instruments.
+The others being the Prologix, the interface that I first used to talk to the 6 GHz VNA
+over the summer, the other open source GPIB USB interface with that we used as inspiration
+for the GPiBridge (I believe it used STM32), and perhaps any more official GPIB to USB
+interfaces.
+
+(Then:) Are you done with the device? Can I pull it off and start desoldering? I will
+assume yes.
+
+## Response 38 2026-11-19 09:04 Claude Opus 5.5
+
+The bottom 33120A (7.0-5.0-1.0): power-up clean on the scope; 150 of 150 cycles; stage 4
+and the speed and fault tests PASS; power-down clean. Its firmware differs from the bad
+unit's only in the I/O processor's number (5.0 against 2.0). `tools/gpibridge.py` fixed: it
+inherited `++eot_enable 1` from `bringup/adapter.py` (a 0x04 at the head of a capture), and
+on a parked board waited 70 s for nothing; two simulated tests. Released the scope and the
+33120A. Separation:
+- **GPiBridge:** `examples/` (pyserial only: `gpib_port.py`, `hp_33120a.py`,
+  `agilent_e3646a.py`, tested on the simulated board; the E3646A one not yet on the
+  supply); README "Getting started" per OS with the udev rule and a link to
+  lab-instrument-control; AGENTS.md says which code may use what.
+- **lab-instrument-control:** `60-gpibridge.rules` (identical to GPiBridge's), the NI
+  rule, an Installing section, `gpib/gpib.md` comparing Prologix, GPiBridge, UsbGpib (an
+  ATmega32U4, not an STM32), the NI HS/HS+ (the summer's three fixes) and Keysight's; no
+  more pointers into GPiBridge or `~/DroneSDR`.
+- **Left for Jason:** whether `bringup/` stage 4 and the speed tests move off
+  lab-instrument-control. Nothing committed.
+
+## Prompt 39
+
+I am soldering the connector onto a second GPiBridge and also a GPiBridgeLite unit. Is the
+firmware the same for the two units, with the transceiver chip either auto detected in
+some way or irrelevant to the firmware? If not, in revB, it would be good to make that
+happen so that only one version of the firmware needs to be maintained. Also, revB and
+its cases should have holes goin all the way through where the GPIB connector has its
+screw holes. This would allow a captive screw with a hand tightened back to securely
+attach the unit to the instrument if someone wanted to.
+
+## Response 39 2026-11-19 09:10 Claude Opus 5.5
+
+Reminded first: a board meant for a housing needs the base on before its plug is soldered
+(REVB 1.6), and the two-pin orientation check. One firmware image already runs both
+boards: it reads R21 on DC before driving anything. Weak point: a Lite with R21 missing may
+read as a GPiBridge; proposed a firmware read with each pull to catch it, and for rev B an
+ID on a spare ADC pin carrying board and revision (REVB 1.8). The screw holes (REVB 1.7):
+the flange's holes fall at (8.65, 17.5) and (55.35, 17.5), on R3, R4, C1, the USB pair and
+inner tracks on the left, J4, R11 and R12 on the right; NorComp's flange holes are 3.2 mm,
+for #4-40, while GPIB lock screws are M3.5 (or 6-32), so rev B needs another plug as well.
+PLAN.md and DESIGN_NOTES.md now point to it.
+
+## Prompt 40
+
+Do the firmware fix for rev A. I plugged in our first GPiBridgeLite into USB. Flash it.
+Then I'll plug it into one of the two working function generators.
+
+(Then:) L1 is on now. (And:) I see the yellow and red LEDs alternating
+
+## Response 40 2026-11-19 09:33 Claude Opus 5.5
+
+Firmware 0.4.5: R21 read with the pad's pull-down, then its pull-up (the pull-down first,
+its input buffer off: RP2350-E9); a pin that follows the pull means no R21: the Lite's pin
+layer, no bus, no raw mode or self-test, ERR steady, "unknown (R21 not read)". Tests: a
+third wire run with R21 missing (the old read fails it, bus pins driven high), a sim_board
+fault and a bring-up test; 39 of 39. L1 was not on USB at first (it had come and gone at
+09:17); flashed the moment it came back (09:30): it read R21 as the Lite. bare and plug
+PASS. The alternating LEDs: the flash step's two-minute identify. Corrected the times of
+Responses 37-39 (they were guessed; now from the transcript).
+
+## Prompt 41
+
+Change of plans. It's plugged into the E3646. Test that instead.
+
+The 3D printed plastic housing made it *just* big enough to not fit in with the power plug
+plugged into the function generator. This is, in general, going to be a problem with these
+units. The circuit board needs to sit almost flush with the back of the instrument. On the
+scale of the backs of these instruments, it's pretty big. There is a lot of stuff back
+there that can get in the way. I don't know what good revB options are. If there is a
+90-degree GPIB solder plug, that might work to have the board stick out back rather than
+along the instrument. A more expensive option would be to buy an extender that would plug
+into the back of the instrument and just copy the port a centimeter or two further back. I
+don't know if these are sold or how expensive they are. The National Instruments and
+Prologix and other adapters mostly stick out back. (They also have the captive thumb screws
+that I talked about.) I don't know what their PCBs look like. Do you think that the GPIB
+plug has solder pins that are soldered on either side of a thick PCB? Do they use a 90
+degree adapter? I'm torn on whether revB should depart this radically or not.
+
+(While I worked: photos of the Keysight 82357B, NI GPIB-USB-HS/HS+, ines GPIB-USB-2,
+ADLINK USB-3488A and Prologix; then of XyphroLabs' UsbGpib V2 and GPIBee, and Galvant's
+bare GPIBUSB board on a right-angle plug: "Here are some other adapters, including a
+"bare" one with a connector that takes a 90 degree bend.")
+
+## Response 41 2026-11-19 09:55 Claude Opus 5.5
+
+L1 on the first E3646A (GPIB 2, claimed): `speed` PASS (22 checks);
+`examples/agilent_e3646a.py`'s first hardware run: 0.494 V, 0.322 A into 1.5 ohm, put
+back, no error. `failsafe L1` failed twice on timing (5.2 s a hang); with the port left
+open the board left USB in 2.02 s (kernel: 2.00 s): closing the port at once had held the
+disconnect up to a kernel timeout. Step fixed, PASS. Rev B form: REVB.md 1.9 with the
+options (straight out on a right-angle plug, which exist; a straddle-mounted solder-cup
+plug; slimmer along the panel; rev A with a short GPIB cable or Keysight's 10834A, which
+moves the connector 2.3 cm out); recommended straight out, the electronics unchanged.
+Then (Jason: the L-com CIB24SRA at $25, L-com's extenders, NorComp's 111-024 at $7.31;
+"Would one of these 90 degree connectors be a drop-in option with the same boards?"): the
+CIB24SRA is a receptacle, the instrument's side, so it cannot plug into an instrument;
+right-angle plugs exist from Chinese makers, not on DigiKey; none is a drop-in on rev A's
+boards, but a 90-degree build could be a third variant from the same generators. Softened
+1.7's claim that GPIB screws are M3.5: the CIB24SRA has 4-40.
+
+## Prompt 42
+
+I'm fine buying from Chinese makers. Give me some links or names to search for.
+
+## Response 42 2026-11-19 09:57 Claude Opus 5.5
+
+Dongguan Fuyconn Electronics: FUY57142 (male, right-angle PCB, "big hole"), FUY57109A
+(right-angle PCB, bail locks), FUY57018C-24P (male, black screws; vertical or right-angle,
+its page says both); MOQ 10, 7-10 days, prices on request, no drawings online. An Alibaba
+listing of a right-angle male with big screw holes. Nothing on LCSC or AliExpress. Search
+terms, and what to ask for (a drawing, the screw thread, the plating, samples). In REVB.md
+1.9.
+
+## Prompt 43
+
+Unit A2 (with transceivers and a 3D printed case) is now plugged in to USB but not to an
+instrument. Flash add test it. I will set up the three instruments that were in the physics
+stock room, so also write test code for those.
+
+## Response 43 2026-11-19 10:35 Claude Opus 5.5
+
+A2 flashed (0.4.5, read as GPiBridge); `bare A2` lost it on its third restart: on USB port
+3-5.3 behind a hub that logged its own errors, the computer could not read its descriptor
+again. Asked for A2 on the computer's own port (3-3, where A1 and L1 passed). The three
+stock-room GPIB instruments taken to be the HP 3325B, 5316B and 5370B; three agents read
+their scanned manuals and wrote `examples/hp_3325b.py`, `hp_5316b.py`, `hp_5370b.py`
+(pyserial only, every code with its page). Reviewed: a sign fix in the 3325B parser; the
+5316B reads to the line feed (`++read 10`, checked on the simulated board); the 5370B has
+no self-check, so its trigger levels are set and read back. None has met its instrument.
+
+## Prompt 44
+
+I have to run, but all 3 instruments are hooked up on 3 different GPiBridges (one lite). I
+don't have time to look at the settings, but do what you can with the setup. I took photos
+of the backs of the instruments and put them in photos. Don't check photos in yet, but
+eventually we'll want nice photos and videos of the devices talking to instruments. I'll
+be back in an hour or two.
+
+## Response 44 2026-11-19 11:14 Claude Opus 5.5
+
+From the photos and a serial poll at every address: A2 on the 3325B (17), L1 on the
+5370B (3), A1 on the 5316B, which is set to TALK ONLY (it answers a poll at every address
+and takes no codes). `hp_3325b.py` PASS through A2; `hp_5370b.py` PASS through L1. Bus
+captures: the 3325B ends in CR LF with EOI, the 5370B without EOI, so `gpib_port.read()`
+can stop at the line feed now. 120 bus cycles each, 120 of 120. A2 restarted 16 times on
+this hub without a fault (the morning's loss was the other hub). A1 flashed to 0.4.5. The
+5370B status byte's oven and timebase bits are clear while a service request stands.
+Instrument notes added to lab-instrument-control's `gpib/gpib.md`. Photos left untracked.
+Nothing committed.
+
+## Prompt 45
+
+Try 5316B again.
+
+(While I worked:) A2 is off of the 3325B. Do that too. / When you say, "A2 on USB: 16
+restarts on the hub you're using now", were these planned restarts or unintended
+restarts? Is there debugging that needs to happen here, or were you just reporting a good
+situation? / On the top-level README.md page of both the GPiBridge and
+lab-instrument-control, I want a list or a table of all instruments that have actually
+been successfully controlled with each piece of software. Don't list where they are in my
+lab, but keep a column for what they are (oscilloscope, power supply, etc), what their
+approximate used cost is, and what limitations they might have under GPiBridge control. /
+I have flipped those two switches on the back of the unit with ADDRESSABLE/TALK ONLY. I
+don't think I flipped either switch when I told you that I had. I needed to unplug and
+move things around. Try that one again. / Let me know when I can plug A2 back into the
+instrument. / A2 is back on. If you want me to connect anything to anything else, let me
+know. It's easy for me to connect the 3 things that you're working with now. If you want
+me to connect any of those things with a function generator or oscilloscope, that would
+require a longer BNC cable chain.
+
+## Response 45 2026-11-19 13:07 Claude Opus 5.5
+
+The 5316B was still in TALK ONLY. The manual's drawing has both leftmost rear switches
+down; Jason's photo had both up. Once Jason set them, it answered at 20 alone, and
+`hp_5316b.py` passed through A1 (CHECK read 10,000,000 Hz). It sends no EOI and keeps
+sending readings while addressed, so a `++read eoi` from the capture tool never ended and
+held A1 until a reboot. `picotool reboot -f -a` can't reboot a running board, because the
+firmware keeps feeding the watchdog. Both bugs are in `REVB.md` 2.15, for 0.4.6. A2's
+bare, failsafe and plug stages pass; the failsafe step had taken "no GPiBridge on USB" for
+"gone", and now follows one board's serial and device number. A2's 16 restarts had been
+deliberate. Both READMEs now have a table of the instruments each has driven, with rough
+used prices and limitations: five through GPiBridges, 13 through lab-instrument-control.
+Asked for a BNC from the 3325B to the 5316B (and the 5370B) for a three-board demo.
+Nothing committed.
+
+## Prompt 46
+
+Called as requested, with the tee. Test all of that.
+
+(While I worked:) Some instruments have knobs and buttons, and I don't know which settings
+can be overridden through GPIB. Let me know if you need me to do anything to the knobs or
+buttons.
+
+## Response 46 2026-11-19 13:31 Claude Opus 5.5
+
+The 3325B (through A2) stepped a 0.5 Vpp sine from 1 kHz to 20 MHz; the 5316B (A1) and the
+5370B (L1, the Lite) counted it. The 3325B read back every frequency exactly. The 5316B
+read +1.24 ppm high at every one, and the 5370B -0.03 ppm from 1 MHz up. The 5370B took
+two corrections: it counts frequency on STOP (`IN2`; on START every period carried about
+0.7 ns), and a sample size sent after the gate time overrides it. Now
+`examples/three_instruments.py`, for the video; the README tables and both repos' notes
+updated. No knobs needed; for a quicker video, the 5316B's rear gate control could be
+turned toward 1 s (now 12-13 s a reading). Asked whether the 5370B's cable moved to STOP.
+Boards parked again. Nothing committed.
+
+## Prompt 47
+
+The 5370B says "Err 02" on its screen. I can restart it or push buttons. Cabe moved to
+STOP
+
+(While I worked:) That message about Err 02 is old. / But it's back on the screen now.
+
+## Response 47 2026-11-19 13:36 Claude Opus 5.5
+
+Err 02 is overrange (Table 3-2): with the 3325B left at 1 mVpp, the 5370B starts a
+measurement that never ends, in frequency or in time interval. Harmless: no restart, no
+buttons. The example now leaves the 5370B in its power-up codes instead of frequency mode;
+a 5 MHz run after the change: 5316B +1.240 ppm, 5370B -0.038 ppm. Claim, log and notes
+updated: the cable is on STOP. Nothing committed.
+
+## Prompt 48
+
+I have further teed off the output to go into both the start and stop with two
+different-length cables. I'd guess 0.5m and 1m. Fix the firmware bugs, upload the new
+firmware, and test things with the current setup. The commit.
+
+(While I worked:) When you're done, I will go down to the Advanced Lab and test those
+instruments. I will need to do this on a different computer with a different agent
+running. That agent will have access to a unison-synchronized copy of this filesystem, so
+you should be able to leave explicit instructions for that claude instance to do what
+needs doing with the Advanced Lab instruments (and any potential firmware updates that it
+needs to do) and writing a report for you to ingest. / Another quick test before I move the
+3 GPiBridge units to the Advanced Lab would be to plug one into the 33220A that is here in
+my office. Write a test for that, in addition to the Advance Lab instruments for later.
+
+## Response 48 2026-11-19 13:57 Claude Opus 5.5
+
+Firmware 0.4.6, on all three boards:
+- **A read the host has given up on now ends** when the host sends anything more. Input
+  already waiting when the read began (several commands in one write) still gets a
+  Prologix's read. `++ver` was answered 60 ms after it was sent, in the middle of a read
+  the 5316B never ends.
+- **Reboot-from-flash now reboots**, in 0.08-0.17 s, and isn't counted as a crash.
+- **picotool needs our USB IDs** (`--vid 0x1209 --pid 0x0001`, plus `--ser` with several
+  boards plugged in). Without them it finds no board at all; the docs are corrected.
+- **Tests:** 85 host checks and 39 bring-up tests pass.
+
+On this setup, `examples/cable_delay.py` timed the two cables through the 5370B: STOP's
+is shorter by 2.85 ns, about 0.56 m. The three-instrument sweep passes on 0.4.6.
+
+Written for later:
+- `examples/agilent_33220a.py`, which keeps the output off.
+- A brief for the Advanced Lab agent, untracked in `bringup/handoff/`, because it names
+  rooms.
+- Three scripts for the Keithley 2000, SR830 and PAR 5210, being written from their
+  manuals.
+- Two lessons in CLAUDE_PCB.md.

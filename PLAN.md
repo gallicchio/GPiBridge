@@ -219,5 +219,7 @@ Status: `[ ]` to do, `[~]` under way, `[x]` done.
 - **The Lite's plug.** It uses GPiBridge's footprint, so NorComp's plug fits it. A cheap
   "24P male solder type" plug probably fits too (UsbGpib V2's board has the same
   pattern), but its body may not fit the housing: try one before ordering more.
-- **Jack screws: decided against.** The flange's holes fall over the board's USB and
-  UART circuits, and UsbGpib V2 does without them too.
+- **Jack screws: decided against for rev A.** The flange's holes fall over the board's
+  USB and UART circuits, and UsbGpib V2 does without them too. Rev B will have them:
+  Jason asked for holes through the board and the housing for captive screws
+  (2026-11-19, `bringup/REVB.md` 1.7).

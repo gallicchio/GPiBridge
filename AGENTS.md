@@ -124,7 +124,9 @@ neither USB autosuspend nor ModemManager interferes.
   console-port on|off | console` (`--port PTY` for a simulated board)
 - The firmware never needs the BOOT button:
   - `tools/gpibridge.py flash` sends `++t bootsel`, then `picotool load`;
-  - `picotool reboot -f -u` uses the reset interface;
+  - `picotool reboot -f -u --vid 0x1209 --pid 0x0001` uses the reset interface (our IDs:
+    picotool looks only for Raspberry Pi's unless told; `--ser SERIAL` too when more than one
+    board is plugged in; `-a` for back into the firmware, which 0.4.6 first honoured);
   - three crashes in a row land in BOOTSEL by themselves.
 - **One serial port by default.** `++t status` (JSON: counters, bus power, SRQ,
   `usb_ready_ms`, the capture) and `++t trace 1` work on it. `console-port on` adds the
@@ -174,6 +176,23 @@ neither USB autosuspend nor ModemManager interferes.
 generators from Python. The HP 33120A at GPIB address 10 is the test instrument for
 `tools/gpibridge.py test 10`. **Ask what is cabled where** before a signal test. Do not
 send `*RST` to the Siglents.
+
+## This repository and lab-instrument-control (Jason, 2026-11-19)
+
+Two public repositories, each usable without the other:
+- **Here:** the board, the firmware, the udev rule, and what someone needs to get going
+  on Linux, macOS or Windows: `README.md`, `HANDBOOK.md`, `tools/gpibridge.py` and
+  `examples/`. That code stays at the "++" level, with pyserial alone, and imports
+  nothing from lab-instrument-control. Point to it
+  ([github.com/QuantumQuasars/lab-instrument-control](https://github.com/QuantumQuasars/lab-instrument-control))
+  for instrument drivers, and never to a path inside it.
+- **There:** instrument drivers, with a GPiBridge as one of several drop-in USB-GPIB
+  adapters (Prologix, NI GPIB-USB-HS+, UsbGpib, ...). It carries its own copy of the
+  udev rule and its own install notes, and must never need this repository.
+- **The udev rule is in both**, as `60-gpibridge.rules`, byte for byte: change both.
+- **`bringup/`** still uses lab-instrument-control, for the bench's test equipment
+  (scope, meter, bench claims) and in stage 4 and the speed tests. Whether those last
+  two move to the "++" level is Jason's call (2026-11-19).
 
 ## Git
 

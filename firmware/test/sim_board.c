@@ -19,7 +19,8 @@
  *                   (0-3) in FILE, and sees what the others assert, as boards
  *                   joined by a GPIB cable do
  *   --fault WHAT    a board fault: no5v, stuck5v, open=LINE, short=LINE,LINE,
- *                   turned (the plug soldered in turned round)
+ *                   turned (the plug soldered in turned round), no_r21 (R21 missing:
+ *                   DC follows the pad's pull)
  *   --manual        start as after "++t autostart 0": off the bus
  *
  * It prints one JSON line with the pseudo-terminal's name when it is ready,
@@ -243,7 +244,12 @@ static void uart(const char *json)
     fprintf(stderr, "%s\n", json);
     fflush(stderr);
 }
-static const char *board_name(void) { return hal_lite() ? "GPiBridge Lite " GPIBRIDGE_BOARD : "GPiBridge " GPIBRIDGE_BOARD; }
+static const char *board_name(void)
+{
+    if (!hal_board_known())
+        return "unknown (R21 not read) " GPIBRIDGE_BOARD;   /* REVB.md 1.8 */
+    return hal_lite() ? "GPiBridge Lite " GPIBRIDGE_BOARD : "GPiBridge " GPIBRIDGE_BOARD;
+}
 static const char *capture_name(void) { return (const char *[]){"idle", "running", "full", "stopped"}[cap]; }
 
 static void status_extra(char *json, size_t n)
@@ -385,6 +391,8 @@ int main(int argc, char **argv)
                 fault_5v_stuck = true;
             } else if (!strcmp(f, "turned")) {
                 turned = true;
+            } else if (!strcmp(f, "no_r21")) {
+                fault_no_r21 = true;
             } else if (!strncmp(f, "open=", 5)) {
                 fault_open |= 1u << bit_pin((unsigned)line_bit(f + 5));
             } else if (!strncmp(f, "short=", 6) && (comma = strchr(f, ','))) {
@@ -392,7 +400,7 @@ int main(int argc, char **argv)
                 fault_short_a = (int)bit_pin((unsigned)line_bit(f + 6));
                 fault_short_b = (int)bit_pin((unsigned)line_bit(comma + 1));
             } else {
-                fprintf(stderr, "sim_board: --fault no5v | stuck5v | turned | open=LINE | short=LINE,LINE\n");
+                fprintf(stderr, "sim_board: --fault no5v | stuck5v | turned | no_r21 | open=LINE | short=LINE,LINE\n");
                 return 2;
             }
         } else {

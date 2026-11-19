@@ -304,6 +304,9 @@ static void command_byte(uint8_t b)
 
 uint64_t sim_busy_us;                    /* after a message's first byte, not ready this long */
 int sim_power_offs;                      /* the transceivers' 5 V switched off */
+bool sim_endless;                        /* addressed to talk, it sends reading after reading, no EOI */
+static const char endless[] = "F      +1.00000E+07\r\n";   /* as an HP 5316B in CHECK */
+static size_t endpos;
 static uint64_t busy_until;
 static uint64_t sim_clock(void);
 
@@ -391,13 +394,16 @@ static void step(void)
     }
     switch (src) {
     case S_IDLE:
-        if (spoll_pending || outpos < outlen)
+        if (spoll_pending || outpos < outlen || sim_endless)
             src = S_WAIT_NRFD;
         break;
     case S_WAIT_NRFD:
         if (!line(L_NRFD) && line(L_NDAC)) {
             if (spoll_pending) {
                 dev_data = sim_status;
+                dev[L_EOI] = false;
+            } else if (sim_endless) {
+                dev_data = (uint8_t)endless[endpos % (sizeof endless - 1)];
                 dev[L_EOI] = false;
             } else {
                 dev_data = (uint8_t)outbuf[outpos];
@@ -415,6 +421,8 @@ static void step(void)
                 spoll_pending = false;
                 sim_status &= (uint8_t)~0x40;    /* RQS clears when polled */
                 sim_srq = false;                 /* and it lets go of SRQ */
+            } else if (sim_endless) {
+                endpos++;
             } else {
                 outpos++;
             }
@@ -452,6 +460,7 @@ static uint64_t sim_clock(void) { return now; }
 bool sim_lite;
 
 bool hal_lite(void) { return sim_lite; }
+bool hal_board_known(void) { return true; }
 
 void hal_init(void)
 {
@@ -558,6 +567,8 @@ void sim_reset(void)
     sim_addr = SIM_ADDR;
     sim_busy_us = busy_until = 0;
     sim_power_offs = 0;
+    sim_endless = false;
+    endpos = 0;
 }
 
 bool sim_ren(void) { return line(L_REN); }

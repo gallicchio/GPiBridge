@@ -135,6 +135,8 @@ static bool another_controller(void)
 
 bool gpib_start(bool force)
 {
+    if (!hal_board_known())
+        return false;                    /* R21 not read: which pin layer is not known (REVB.md 1.8) */
     if (powered && !raw) {
         /* On the bus already ("++t power 1" again): take it again without switching the
          * transceivers off and on, as a Prologix never does either.  Until 0.4.4 this was
@@ -206,6 +208,8 @@ bool gpib_busy(void) { return busy; }
  * IFC, no REN, nothing asserted. */
 void gpib_raw(raw_role role)
 {
+    if (!hal_board_known())
+        return;                          /* bringup.c says why */
     busy = false;
     if (!powered) {
         hal_init();

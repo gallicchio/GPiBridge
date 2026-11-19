@@ -96,11 +96,12 @@ class Ctx:
 
     def _known(self, serial, kind, label=None):
         """The label of this serial number; a board seen for the first time gets the next
-        free one: A1, A2 for GPiBridge, L1, L2 for the Lite."""
+        free one: A1, A2 for GPiBridge, L1, L2 for the Lite, U1 for a board whose R21
+        the firmware could not read (0.4.5: "unknown (R21 not read)")."""
         b = self.state['boards'].get(serial)
         if b is None:
             if label is None:
-                letter = 'L' if 'Lite' in kind else 'A'
+                letter = 'U' if 'unknown' in kind else 'L' if 'Lite' in kind else 'A'
                 taken = {x['label'] for x in self.state['boards'].values()}
                 label = next(f'{letter}{n}' for n in range(1, 99) if f'{letter}{n}' not in taken)
             b = self.state['boards'][serial] = {'label': label, 'kind': kind, 'stages': {}, 'new': True,
@@ -459,6 +460,7 @@ def step_failsafe(ctx, label=None):
     if not tool:
         raise StepFailed('picotool is not on the PATH')
     label, b = ctx.pick(label)
+    serial = b['serial']
     rec = Rec('failsafe', label, False)
     a = ctx.open(label)
     up = a.json('++t info')['uptime_ms']
@@ -466,15 +468,24 @@ def step_failsafe(ctx, label=None):
         time.sleep((11000 - up) / 1000)
     rounds = rec['rounds'] = []
     for n in (1, 2, 3):
+        hung_usb = {num for num, _ in A.usb_by_serial(serial)}
         a.cmd('++t crash')
         t0, t_gone, where = time.time(), None, None
-        a.close()                                  # blocks until the board is gone: the kernel waits on it
+        # The port stays open until the board has gone. Closed at once, the kernel sends the
+        # hung board a request it never answers, and handles the disconnect only when that
+        # times out: L1 (2026-11-19) "went" at 5.2 s that way, and at 2.02 s with the port
+        # open (the kernel's own disconnect: 2.00 s). A1 had won that race on 2026-11-16.
+        hung = a                                   # the loop below rebinds `a` to the board come back
         while time.time() - t0 < 12:
-            boot = A.usb_devices(A.BOOT_VID, A.BOOT_PID)
+            now = A.usb_by_serial(serial)
+            boot = [num for num, ids in now if ids == (A.BOOT_VID, A.BOOT_PID)]
             running = ctx.present().get(label)
-            # gone: the USB device itself (its serial port's link comes and goes with udev's work)
-            if t_gone is None and not A.usb_devices(A.VID, A.PID) and not boot:
+            # gone: this board's hung USB device (other boards may be plugged in: A2, 2026-11-19,
+            # beside A1 and L1). A device number not seen before is a new enumeration, even one
+            # that came before this loop looked (A2 went and came back within one second).
+            if t_gone is None and not any(num in hung_usb for num, _ in now):
                 t_gone = time.time() - t0
+                hung.close()                       # gone: the close returns at once
             if boot and t_gone is not None:
                 where = 'BOOTSEL'
                 break
@@ -487,6 +498,7 @@ def step_failsafe(ctx, label=None):
                 except (OSError, ValueError):
                     pass
             time.sleep(0.05)
+        hung.close()
         rounds.append({'crash': n, 'gone_after_s': None if t_gone is None else round(t_gone, 2), 'then': where,
                        'watchdog_reset': info.get('watchdog_reset') if where == 'running' else None})
         want = 'BOOTSEL' if n == 3 else 'running'
@@ -496,13 +508,19 @@ def step_failsafe(ctx, label=None):
                   and (n == 3 or info.get('watchdog_reset') == 1), rounds[-1], f'{want}, after 2 s')
         if where != 'running':
             break
-    if A.usb_devices(A.BOOT_VID, A.BOOT_PID):
+    if any(ids == (A.BOOT_VID, A.BOOT_PID) for _, ids in A.usb_by_serial(serial)):
         r = picotool_reboot(tool, rec)
         rec.check('picotool reboot answered', r.returncode == 0, (r.stdout + r.stderr).strip()[-160:], 'ok')
         a, back = ctx.reopen(label, why='picotool reboot')
         info = a.json('++t info')
         rec.check('picotool boots the image again, and that is not counted as a crash',
                   info['watchdog_reset'] == 0, info['watchdog_reset'], 0)
+    elif where != 'running':                       # a round the loop did not see end: `a` is the hung port
+        try:
+            a, back = ctx.reopen(label, why='a hang')
+        except StepFailed as e:
+            rec.check('the board is back, to be parked', False, str(e)[-200:], 'running')
+            return ctx.save(rec, 'failsafe')
     park(a)
     a.close()
     return ctx.save(rec, 'failsafe')

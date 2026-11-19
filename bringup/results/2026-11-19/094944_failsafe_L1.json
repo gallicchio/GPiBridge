@@ -1,0 +1,77 @@
+{
+ "step": "failsafe",
+ "board": "L1",
+ "at": "2026-11-19 09:49:44",
+ "sim": false,
+ "ok": false,
+ "checks": [
+  {
+   "what": "hang 1: the watchdog restarts the board into the firmware, which says why",
+   "ok": false,
+   "got": {
+    "crash": 1,
+    "gone_after_s": 5.19,
+    "then": "running",
+    "watchdog_reset": 1
+   },
+   "want": "running, after 2 s"
+  },
+  {
+   "what": "hang 2: the watchdog restarts the board into the firmware, which says why",
+   "ok": false,
+   "got": {
+    "crash": 2,
+    "gone_after_s": 5.41,
+    "then": "running",
+    "watchdog_reset": 1
+   },
+   "want": "running, after 2 s"
+  },
+  {
+   "what": "hang 3: the watchdog restarts the board into the ROM bootloader",
+   "ok": false,
+   "got": {
+    "crash": 3,
+    "gone_after_s": 5.41,
+    "then": "BOOTSEL",
+    "watchdog_reset": null
+   },
+   "want": "BOOTSEL, after 2 s"
+  },
+  {
+   "what": "picotool reboot answered",
+   "ok": true,
+   "got": "The device was rebooted into application mode.",
+   "want": "ok"
+  },
+  {
+   "what": "picotool boots the image again, and that is not counted as a crash",
+   "ok": true,
+   "got": 0,
+   "want": 0
+  }
+ ],
+ "notes": [
+  "picotool reboot answered at try 2"
+ ],
+ "rounds": [
+  {
+   "crash": 1,
+   "gone_after_s": 5.19,
+   "then": "running",
+   "watchdog_reset": 1
+  },
+  {
+   "crash": 2,
+   "gone_after_s": 5.41,
+   "then": "running",
+   "watchdog_reset": 1
+  },
+  {
+   "crash": 3,
+   "gone_after_s": 5.41,
+   "then": "BOOTSEL",
+   "watchdog_reset": null
+  }
+ ]
+}
