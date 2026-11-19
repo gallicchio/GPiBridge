@@ -32,7 +32,9 @@ interval counter, live on their displays
 ([`examples/fun_numbers.py`](examples/fun_numbers.py);
 [the 29 s video](docs/video/fun_numbers.mp4)):
 
-[![The fun-numbers demo: an HP 3325B and two HP counters, each on its own GPiBridge, showing the same frequencies](docs/images/fun_numbers.gif)](docs/video/fun_numbers.mp4)
+| the front: the 3325B sets, the counters read | the back: a GPiBridge on each, green LEDs lit (15 s in) |
+|---|---|
+| <a href="docs/video/fun_numbers.mp4"><img src="docs/images/fun_numbers.gif" width="270" alt="The fun-numbers demo: an HP 3325B and two HP counters, each on its own GPiBridge, showing the same frequencies"></a> | <a href="docs/images/three_gpibridges.jpg"><img src="docs/images/three_gpibridges.jpg" width="270" alt="The backs of the three instruments, a GPiBridge plugged into each one's GPIB socket, their USB cables meeting at a hub"></a> |
 
 Inside:
 - An **RP2354A** (RP2350 with 2 MB of flash in the package). It runs the bus and USB,

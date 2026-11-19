@@ -2254,3 +2254,16 @@ sound track in case it held voices; Jason asked to keep it, so it is back (AAC, 
 `docs/images/fun_numbers.gif` is 2.0 MB and links to it, near the top of the README.
 
 The Advanced Lab is ready: the brief, plus the three scripts.
+
+## Prompt 51
+
+On the main README.md page, include a still from the video from around 15 seconds in. Pick
+one that's in focus and shows all 3 GPiBridge devices controlling the 3 instruments.
+
+## Response 51 2026-11-19 14:26 Claude Opus 5.5
+
+From 11 to 19 s, a frame every 0.25 s, ranked by sharpness (Laplacian variance). 15.50 s
+was the sharpest of the backs (327, against 14-260 around it), with all three boards' green
+LEDs in view. It is `docs/images/three_gpibridges.jpg` (540x960, 143 kB), beside the GIF in
+a two-column table near the top of the README, both at 270 px. The commit waits for
+Jason's word: the permission check stopped it.
