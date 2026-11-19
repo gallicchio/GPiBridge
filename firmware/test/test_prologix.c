@@ -157,6 +157,20 @@ int main(void)
     sim_busy_us = 0;
     type("++clr\n");
 
+    /* "++t power 1" on a live bus takes it again without switching the transceivers off
+     * and on (0.4.3 did; REVB.md 2.14) */
+    int offs = sim_power_offs, sdc_before = sim_sdc_count;
+    type("++t power 1\n");
+    CHECK(sim_power_offs == offs && gpib_powered(), "++t power 1 on a live bus: no power-off (%d)", sim_power_offs - offs);
+    type("*IDN?\n++read eoi\n");
+    CHECK(!strcmp(out, "HEWLETT-PACKARD,33120A,0,7.0-5.0-1.0\n") && sim_sdc_count == sdc_before,
+          "and the instrument answers after it: \"%s\"", out);
+    /* off, then on: the off is real, and the instrument is left unaddressed first */
+    type("++addr 10\nVOLT 1.5\n++t power 0\n");
+    CHECK(sim_power_offs == offs + 1 && !gpib_powered(), "++t power 0 switches it off");
+    type("++t power 1\n*IDN?\n++read eoi\n");
+    CHECK(!strcmp(out, "HEWLETT-PACKARD,33120A,0,7.0-5.0-1.0\n"), "on again, and answered: \"%s\"", out);
+
     /* settings: each change asks to be saved; ++savecfg 0 stops that */
     saves = 0;
     type("++eos 2\n++eoi 0\n");

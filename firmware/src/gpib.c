@@ -135,6 +135,17 @@ static bool another_controller(void)
 
 bool gpib_start(bool force)
 {
+    if (powered && !raw) {
+        /* On the bus already ("++t power 1" again): take it again without switching the
+         * transceivers off and on, as a Prologix never does either.  Until 0.4.4 this was
+         * gpib_stop() and a new start.  Suspected on 2026-11-18 of stopping a 33120A; the
+         * scope then showed the lines clean through both, and that unit stopping on its
+         * own (REVB.md 2.14).  Not switching the 5 V is still the better restart. */
+        gpib_ifc();
+        gpib_ren(true);
+        gpib_idle();
+        return true;
+    }
     if (powered)
         gpib_stop();                     /* never hal_init() with pins driven */
     hal_init();                          /* everything released, transceivers off */
@@ -173,6 +184,10 @@ void gpib_stop(void)
         powered = raw = false;
         return;
     }
+    uint32_t limit = gpib_timeout_us;
+    gpib_timeout_us = 50000;             /* (a stuck instrument does not hold the stop up) */
+    gpib_idle();                         /* nobody left addressed when ATN goes and the 5 V with it */
+    gpib_timeout_us = limit;
     hal_set(L_REN, false);
     hal_set(L_ATN, false);
     hal_set(L_IFC, false);

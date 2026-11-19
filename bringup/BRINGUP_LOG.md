@@ -346,3 +346,63 @@ Record: `results/2026-11-18/145415_gen_A1.json`
 - 14:47 nothing answered within seconds of a power-up; 14:52, after 3 minutes with A1 parked, it answered.
 - 14:53 `gen`: no timeout at all; the scope's amplitude check was too strict (fixed: alignment to a tenth of a sample, amplitude by RMS). 14:54 `gen`: PASS.
 - 14:56 `run.py speed`: its `APPLy:...;APPLy?` was read as `APPLy:APPLy?` (fixed: `;:`); no answer, re-reads for 5 s, device clear, and the 33120A stopped taking data again. A1 parked; waiting for a power cycle (`REVB.md` 2.13).
+
+## 2026-11-18 15:59:32  `flash` A1: PASS
+
+Record: `results/2026-11-18/155932_flash_A1.json`
+
+- ok   an RP2354A is waiting in its ROM bootloader (2e8a:000f)
+- ok   picotool load and verify, USB 3-3
+- ok   A1 (9F9D542A93F67D76) runs the new firmware
+
+## 2026-11-18 16:51:36  `gen` A1: PASS
+
+Record: `results/2026-11-18/165136_gen_A1.json`
+
+- ok   on the bus as the controller
+- ok   *IDN? through lab-instrument-control
+- ok   a sine set and read back
+- ok   a triangle set and read back
+- ok   20 MHz refused, with the generator's own error
+- ok   the error queue is empty afterwards
+- ok   1000 points uploaded in one binary line (2000 bytes): the count and the average the generator computed
+- ok   16000 points uploaded in one binary line (32000 bytes): the count and the average the generator computed
+- ok   a serial poll answers with a status byte
+- ok   sigrok's IEEE-488 decoder reads the capture as the query and its answer
+- ok   no timeout and no "no listener" in the whole step
+- note: through the Prologix the same loop runs at about 31 a second (lab-instrument-control, gpib/gpib.md)
+
+## 2026-11-18 16:51:58  `speed` A1: PASS
+
+Record: `results/2026-11-18/165158_speed_A1.json`
+
+- ok   queries: no timeout and no "no listener"
+- ok   settings back to back: *OPC? answers and the last one holds
+- ok   every setting read back as written
+- ok   every setting read back in the same message
+- ok   the instrument logged no error for any of it
+- ok   a message ended by the board's EOI alone is understood
+- ok   SRQ: raised by the instrument, read in the serial poll (RQS and ESB), let go after it
+- ok   nobody at GPIB 30: an error that says so
+- ok   nobody at GPIB 30: counted by the board
+- ok   nobody: the next query gets its own answer
+- ok   read_nothing: the next query gets its own answer
+- ok   refused: the next query gets its own answer
+- ok   answer_left_in_the_port: the next query gets its own answer
+- ok   timeout_mid_answer: the next query gets its own answer
+- ok   signal_mid_query: the next query gets its own answer
+- ok   the board answers its own query after all that
+- ok   unread_query_then_clear: the next query gets its own answer
+- ok   chain_of_80: the next query gets its own answer
+- ok   junk_5000: the next query gets its own answer
+- ok   the capture holds the query and its answer
+- ok   the 33120A left as it was found
+- note: speed and fault tests: not a bring-up stage
+
+## 2026-11-18 15:01-16:54  the 33120A's lock-ups traced (by hand; REVB.md 2.13-2.14)
+
+- 15:06 stuck: serial poll status 0; a universal device clear sent by hand in `++t raw ctrl_talk` taken but NDAC never let go: its processor, not its GPIB chip, has stopped. Only its power switch frees it.
+- 15:16-15:19 one piece at a time, `*IDN?` after each: empty reads, `APPLy:APPLy?`, the exact failing message, device clear, `APPLy:DC`, go to local, park and back: none stopped it.
+- 15:53 20 bus off/on cycles 0.5 s apart: 20 of 20; 20 restarts of a live bus (0.4.3: 5 V off and on within 3 ms): stopped at the 10th. Firmware 0.4.4 (a restart does not switch the 5 V; 0.5 s minimum off; unaddress before letting go), simulated, flashed 15:59. 16:01 30 restarts: 30 of 30; 16:03 back-to-back off and on: stopped at the first.
+- 16:35 Jason's wires on DAV (6), IFC (9), ATN (11), TP4; SDS2104X Plus channels 1-4. Generator power-up, A1 plug-in (bus off), A1's power-up: lines clean at 10 ns; still the first `*IDN?` after the generator's fresh power-up got nothing, twice. No bridge at the new joints (raw test).
+- 16:49 the "top" 33120A (8.0-5.0-1.0, set to HP-IB 10): answered at once; 30 back-to-back off/ons, 30 off/ons, 30 restarts, 30 go-to-locals: 120 of 120; `gen` PASS (16:51); `speed` PASS, every fault (16:51). A1's power-down on the scope: 5 V below 0.2 V in 2.9 ms, lines clean. The first unit is at fault.

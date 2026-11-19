@@ -1733,3 +1733,139 @@ not answer (my SCPI mistake), and needs one more power cycle, with A1 parked (it
   busy over 1 s and dropped the rest of the message (0.4.3: 10 s; flashed).
 - **Open:** the 33120A stopping (REVB.md 2.13). Next test, from a fresh power-up: reads
   with nothing asked, to see whether that is what wedges it.
+
+## Prompt 26
+
+And when you do try, go slowly and carefully.
+
+## Response 26 2026-11-18 15:05 Claude Opus 5.5
+
+Waited 3 minutes, looked at the lines (normal), sent one `*IDN?`: no answer, the
+generator still stuck (not yet power-cycled). Parked A1 and stopped; listed the
+step-by-step test for after its power cycle.
+
+## Prompt 27
+
+Is there no way to do something with the HPIB bus to get the function generator
+unstuck? Really?
+
+## Response 27 2026-11-18 15:07 Claude Opus 5.5
+
+Tried what had not been: a serial poll (status 0: its GPIB chip answers by itself) and a
+universal device clear sent by hand in raw mode: taken, but NDAC never let go, i.e. the
+chip waits for the generator's processor, which has stopped (its keys are dead too).
+IFC and REN-off had happened many times already. Nothing on the bus restarts a stopped
+processor: only its power switch.
+
+## Prompt 28
+
+Before I rebooted, the screen says "+0.000 VDC" and the Rmt and ERROR indicators are
+on. I am turning it on. You probably don't need to wait 3 minutes, but give it at least
+enough time to go through its self tests.
+
+## Response 28 2026-11-18 15:20 Claude Opus 5.5
+
+One step at a time, `*IDN?` after each: one and five empty reads, `APPLy:APPLy?`, the
+exact failing message, five reads, a device clear with errors unread, `APPLy:DC`, go to
+local, park and back: none stopped it. Then a speed run's opening `++t power 1` on a live
+bus (5 V off and on within 3 ms) and it stopped. Suspected A1's power switching.
+
+## Prompt 29
+
+I cannot clip to the DAV pin. I will need to solder. Let's repeat. If this continues to
+be a problem that cannot be fixed in firmware, this is not an acceptable hardware product
+to use in lab. If simply turning on the transceivers causes instruments to require a
+power cycle, I cannot use this. I hare restarted the function generator.
+
+## Response 29 2026-11-18 16:00 Claude Opus 5.5
+
+20 off/ons 0.5 s apart: 20 of 20; restarts: stopped at the 10th. Firmware 0.4.4: a
+restart does not switch the 5 V; a 0.5 s minimum off; unaddress before letting go;
+simulated, flashed.
+
+## Prompt 30
+
+generator powered off and on.
+
+## Response 30 2026-11-18 16:05 Claude Opus 5.5
+
+0.4.4: 30 restarts, 30 of 30. Back-to-back off and on (0.51 s off, held by the
+firmware): stopped at the first. So the delay was not the cause; recommended watching
+the lines on the scope.
+
+## Prompt 31
+
+I will solder the wires on the back to probe with the scope, but give me pin numbers in
+addition to things like "2nd from the left". Pins 1, 12, and 13 are labeled, so I can use
+that to find a specific number. "2nd from the left" is a nice confirmation.
+
+## Response 31 2026-11-18 16:08 Claude Opus 5.5
+
+From the board file: DAV contact 6 (ground 18 across from it), ATN 11 (ground 23), IFC 9
+(ground 21), TP4 for the 5 V; contact k sits across from k+12.
+
+## Prompt 32
+
+I have all 4 of your channels in. DAV (yellow lead) on ch1, ATN (blue lead) on ch3, IFC
+(brown lead) on ch2, and the 5V test point (green lead) on Ch4. All probes are 10x. I'm
+not sure they are all properly compensated probes, and the leads (including the ground
+leads) are each 20cm long in order to be able to set the probes down without pulling on
+the solder joints. The function generator is off and the GPiBridge is not plugged into
+USB. Start recording on the scope and tell me whether to plug in the USB on the GPiBridge
+or turn on the function generator.
+
+(During the turn:) The other project was not using ch4. / I can go back to probing the
+function generator on ch2 if that's better, but that does not seem to be as useful at the
+moment. / Generator turned on. / USB-C plugged in
+
+## Response 32 2026-11-18 16:41 Claude Opus 5.5
+
+Claimed all four channels (ch4 by force); 1 Mohm, x10. Generator power-up: its own short
+blips, then lines released near 3 V. A1 plugged in: nothing. A1's transceivers on: clean
+(nothing for 6 ms, then IFC 151 us, ATN, UNT, UNL). Yet the first `*IDN?` got nothing.
+
+## Prompt 33
+
+It shows Rmt but no ERROR. Try again with the 33120A one more time, then we'll switch to
+different 33120A units that I have here. I can't do Prologix until tomorrow. The 33120A
+was rebooted and has been on for a minute.
+
+## Response 33 2026-11-18 16:46 Claude Opus 5.5
+
+A1's power-up clean again; no answer again (2 of 2 since the wires, 3 of 3 before). No
+bridge at the joints (raw mode). Asked for the swap to another 33120A.
+
+## Prompt 34
+
+It's on a different, newer-looking 33120A and all scope probes should be the same. It was
+not easy to move, so something might have come loose.
+
+## Response 34 2026-11-18 16:56 Claude Opus 5.5
+
+*Nothing committed since 65436aa.*
+
+Probes all reading. The "top" 33120A (8.0-5.0-1.0) answered at once; 120 of 120 cycles
+(back-to-back off/on, off/on, restart, go to local); stage 4 PASS; speed and fault tests
+PASS (`*OPC?` 4.4 ms). A1's power-down on the scope: 5 V below 0.2 V in 2.9 ms, lines
+clean. **The first 33120A is at fault, not A1.** Corrected REVB 2.14's brownout theory and
+0.4.4's comments; noted in lab-instrument-control's `hp/hp.md` and `AGENTS.md` that the
+first unit locks up and the "top" unit is on HP-IB address 10 now.
+
+## Prompt 35
+
+Commit everything. Then look at the loast of equipment in lab-instrument-control, filter
+on ones that have a GPIB port, and sort them from least expensive to most expensive. We'll
+test a few until we're satisfied that the A1 hardware works. Let me know if it can desolder
+the wires now connected to the scope. If you want them, that's fine, but they are a
+shorting hazzard.
+
+## Response 35 2026-11-18 18:30 Claude Opus 5.5
+
+Put the SDS2104X back as found, but with channel 2 at 1 MΩ while a probe is still soldered
+to A1. The read-back showed the hidden channels' scale and offset had not come back: the
+scope ignores both on a channel that is off. lab-instrument-control's `channel()` now
+switches the channel on for them (checked on channel 1); noted in `siglent.md`. Committed
+GPiBridge, lab-instrument-control and OpticsPCBs' `CLAUDE_PCB.md`. Listed the inventory's
+GPIB instruments by rough used price (my estimates, not looked up). The four wires can come
+off now. Suggested the order: the bench's E3632A, the 33220A (GPIB and LAN, so a stall can
+be told from a hang), then stage 5's Keithley 2000 and SR830.

@@ -250,7 +250,8 @@ A1 on the bench's 33120A at GPIB 10, its OUTPUT by coax on the SDS2104X Plus's c
   T10s) and still counts and logs a write that hits it. `test_prologix` has a listener
   busy 3 s after a message's first byte (`sim_busy_us`, new in `sim_bus.c`), which 0.4.2
   fails, and one busy 30 s, which must time out and be counted. A1 flashed to 0.4.3.
-- **The 33120A then stopped taking data altogether** (open). Three times it answered
+- **The 33120A then stopped taking data altogether** (settled in 2.14: that unit does it,
+  not A1). Three times it answered
   nothing: after the end of a stage 4 run (the 16,000 points, `APPLy:DC`, `++loc`, a serial
   poll), and once straight after Jason switched it off and on. A device clear and an IFC
   did not free it. The capture on 0.4.3: it takes the addressing bytes (UNL, MTA, LAD 10),
@@ -276,9 +277,102 @@ A1 on the bench's 33120A at GPIB 10, its OUTPUT by coax on the SDS2104X Plus's c
     differ: compare captures).
   - Its power-up takes time: one attempt within seconds of switching it on got nothing.
     Leave it 3 minutes, A1 parked.
+  - **Nothing on the bus frees it** (15:06, stuck): IFC (at every `++t power 1`), REN
+    dropped (at every park) and a selected device clear had not; a serial poll answered
+    status 0 (no answer waiting); a universal device clear sent by hand in `++t raw
+    ctrl_talk` was taken with NRFD but NDAC never let go in 2 s: its GPIB chip holds the
+    handshake until the processor deals with a clear, and the processor (keys dead too)
+    does not. So it is the generator's firmware that stops; only its power switch helps.
+  - **One piece at a time, from a fresh power-up (15:16-15:19), nothing stopped it**, a
+    `*IDN?` after each: one read with nothing asked, five 0.8 s apart (no error logged
+    for either), `APPLy:APPLy?` (-113 and -420 logged, as SCPI has it), the exact
+    `APPLy:SINusoid 1234.5,0.1,0;APPLy?`, five reads, a device clear with the errors
+    unread, `APPLy:DC` and `APPLy?`, go to local, park and take the bus again.
+  - **Then it stopped with nothing sent to it but A1 restarting the bus**: the check left
+    A1 on the bus, and `run.py speed` opens with `++t power 1`, which on a live bus is
+    `gpib_stop()` then `gpib_start()`: the transceivers' 5 V off and on within
+    milliseconds, IFC, REN. Its first `*IDN?` got nothing (48 bytes out, 0 in). Of the
+    four stops not explained by its power-up, three came just after A1's transceivers
+    were powered down and up (a park and a new session, or this restart); the fourth was
+    0.4.2's half-message. Not every such cycle stops it (one in the careful run did not).
+    **Working guess: the lines glitch while A1's 5 V comes and goes, and the 33120A takes
+    a glitch for a byte under ATN** (2.5 above: NRFD, NDAC and SRQ blips at the 5 V's
+    edges, seen in simulation). To settle on the bench: a scope on DAV and ATN at the
+    plug's pins on the board's top side through a park and a `++t power 1`; or twenty
+    park/power-up cycles, each followed by `*IDN?`. If it is that, it is a firmware
+    order-of-operations fix first (lines held released until the 5 V is up, Q1 switched
+    with the transceivers in a known state), and a rev B question if the transceivers
+    themselves glitch on their supply's edges.
 - **SCPI's `;` in `sim_bus.c`**: a message of several commands answers each, the answers
   joined by `;` (text only: a `DATA:DAC` block or `test_wire`'s every byte value stays
   whole). `run.py speed` sends such messages.
+
+### 2.14 Restarting a live bus stopped the 33120A; firmware 0.4.4 (2026-11-18)
+- **Found:** 20 cycles each, a `*IDN?` after every one, from a fresh power-up of the
+  generator (`cycles.py` in the session's scratch, 15:53-15:55):
+  - bus off (`++t power 0`), 0.5 s, on again: **20 of 20 answered**;
+  - `++t power 1` on a live bus: answered 9, then **stopped at the 10th**, the same stop
+    as in 2.13 (holding NRFD, only its power switch helps).
+- **What:** `++t power 1` on a live bus was `gpib_stop()` then `gpib_start()`: the
+  transceivers' 5 V switched off, 3 ms (`RAIL_FALL_US`), on again. I took it for a
+  brownout (the rail not yet fallen). **Wrong, as measured later the same day:** the 5 V
+  falls below 1 V in 0.36 ms and below 0.2 V in 2.9 ms, so 3 ms was a full power-down;
+  and the lines through A1's power-up and power-down are clean (below). The stops were
+  that 33120A's own.
+- **Change, 0.4.4:**
+  - `++t power 1` (or 2) on a live bus takes it again without touching the 5 V: IFC,
+    REN, unaddress all.
+  - The 5 V is never switched on again within 0.5 s of being switched off, by any path
+    (`hal_power`, `MIN_OFF_US`; USB and the watchdog served while it waits).
+  - Before letting go of the bus, everyone is unaddressed (UNT, UNL), with a 50 ms limit
+    so a stuck instrument cannot hold the stop up.
+  - `test_prologix`: `++t power 1` on a live bus switches nothing off, and the
+    instrument answers after it; off and on again works.
+- **On 0.4.4 (16:01-16:03), after a power-up of the generator:** 30 restarts (now no
+  power switching), **30 of 30 answered**. Then `++t power 0` and `++t power 1` back to
+  back (the firmware held the 5 V off 0.51 s): **stopped at the first**. So the 3 ms
+  was not the whole story. Two theories ruled out on paper: a control pin glitching
+  while `hal_init()` re-initialises it right after the power is cut (DC has R21, 10 k to
+  3.3 V; TE_DATA and TE_CTRL 10 k to ground); and the 3 ms itself. Taken together
+  (0.4.3: 20 of 20 with 0.5 s off timed by the host, 1 in 10 restarts; 0.4.4: 1 of 1),
+  the data fit **"each switching of the transceivers off and on has a few per cent
+  chance of stopping this 33120A"**, which would be a hardware matter, as well as they
+  fit chance. Only the lines on a scope can tell.
+- **Settled, 16:35-16:52: it was that 33120A, not A1.** Jason soldered wires to DAV
+  (contact 6), IFC (9) and ATN (11), with grounds across from them (18, 21, 23), and a
+  fourth to TP4; x10 probes on the SDS2104X Plus, 20 cm leads.
+  - The lines, everything off: 0 V. The generator switched on: its own lines blip for
+    2-10 us at 7.7 ms (and its power switch's transient shows on every probe for
+    0.25 ms), then rest released near 3 V. A1 plugged into USB, bus off: DAV never fell.
+  - **A1's transceivers switched on (three times): clean at 10 ns resolution.** The 5 V
+    rises to 4.9 V and DAV, IFC and ATN do not move; at 6.0 ms IFC for 151 us, ATN, and
+    two DAV pulses (UNT, UNL), as the firmware writes them.
+  - Yet the first 33120A (firmware 7.0-2.0-1.0) did not answer the first `*IDN?` after
+    a fresh power-up, twice running: it took the addressing and the first byte, then
+    held NRFD. No bridge at the soldered pins: in `++t raw ctrl_talk` each of DAV, IFC,
+    EOI, REN, DIO1 and DIO5 asserted alone showed alone; ATN brought NDAC, as it must.
+  - **A second 33120A (the "top" one, firmware 8.0-5.0-1.0, switched to HP-IB address 10),
+    the same A1, wires and probes:** answered at once; then 30 back-to-back offs and
+    ons, 30 offs and ons 0.5 s apart, 30 restarts, 30 go-to-locals each followed by a
+    query: **120 of 120 answered**; stage 4 PASS (`165136_gen_A1.json`); `run.py speed`
+    PASS, every fault section included (`165158_speed_A1.json`): `*OPC?` 4.4 ms (230 a
+    second), `*IDN?` 45, `VOLT?` 91 a second; A1 takes a byte in under 1 us.
+  - So the first unit stops, now and then and lately more often, on its own: it was
+    the last two of its lock-ups after power-ups whose lines were clean. To try it with
+    the Prologix (tomorrow) for the record; meanwhile it is not a test instrument.
+  - 0.4.4's changes stay: a restart that does not switch the 5 V is simply better, and
+    the 0.5 s off is harmless.
+  - **A1's transceivers switched off (16:53, `++t power 0`):** DAV pulses twice (0.4.4's
+    UNT, UNL), ATN is let go, then the 5 V falls: below 1 V in 0.36 ms, 0.5 V in 0.93 ms,
+    0.2 V in 2.9 ms. DAV, IFC and ATN do not cross 1.5 V while it does; they sag from
+    3.1 to about 2.45 V (the unpowered transceivers' load) and stay there.
+- **Still open, for the hardware:** the lines not watched through a power-up or down:
+  NRFD, NDAC, REN, EOI, the data. Nothing points at them now. 20 clean cycles passed; the earlier
+  stops after a park and a new session (2.13) were on 0.4.2 or followed a restart.
+  The fall time of +5V_GPIB (TP4, section 3) and the bus lines through a power-up,
+  on a scope, are the measurements that settle it. If a clean power-up glitches, it is
+  a rev B matter (an enable on the transceivers' bus side, or their supply held up and
+  the outputs gated).
 
 ### 2.7 New commands, for the bring-up and after
 `++t info`, `++t lines`, `++t selftest`, `++t raw ...`, `++t identify`,
@@ -297,7 +391,7 @@ A1 on the bench's 33120A at GPIB 10, its OUTPUT by coax on the SDS2104X Plus's c
 | Is +5V_GPIB above 4.75 V on this cable and port, bus on? | stage 1b | A1: **yes, 5.144 V**, with VBUS 5.159 V through a hub three levels deep (5.202 V with the bus off). Q1 drops 15 mV |
 | The ripple on +1V1 with the substituted L1, bus off and on | stage 1b | A1: 2.5 mV rms on and off; at most 48 mV pp (hand-held probe, full bandwidth), against 60. DC 1.10-1.11 V |
 | Does R21 back-power +5V_GPIB through the SN75161B's DC input with the bus off (`PIN_AUDIT.md`)? | stage 1b, TP4 bus off | A1: **no**, 0 V on a meter |
-| How fast does +5V_GPIB fall when Q1 opens (firmware waits 3 ms)? | stage 1b, the scope on TP4 | |
+| How fast does +5V_GPIB fall when Q1 opens (firmware waits 3 ms)? | stage 1b, the scope on TP4 | A1: below 1 V in 0.36 ms, 0.5 V in 0.93 ms, 0.2 V in 2.9 ms (on the 33120A's bus, 2026-11-18): 3 ms is enough. Rises to 4.9 V within a millisecond; IFC follows at 6 ms (2.14) |
 | The board's current, idle and with the bus on (the descriptor asks for 300 mA) | an inline USB meter, if one is at hand | |
 | Does a free bus read as free (section 2.4)? | stages 1, 4 | A1: **yes** on the E3646A's bus (one device, no controller): `++t power 1` took it. Stage 4 again |
 | A real instrument through the soldered plug | the E3646A, by hand (2026-11-18), before stage 4 | A1: **yes**. Output 2 stepped into 1.5 Ω and read back within 1 % of the same supply over RS-232; 5999 bytes out, 1540 in, no timeout, no "no listener" (`results/2026-11-18/134503_e3646a_A1.json`). So the plug is the right way round and DIO1-8, DAV, NRFD, NDAC, ATN and the supply's EOI pass. Later that day SRQ (raised by `*OPC` with `*SRE 32`, serial poll 96, released by the poll) and EOI sent by A1 (a `*IDN?` ended by EOI alone was answered) passed too (`140851_e3646a_speed_A1.json`). Not shown: IFC, REN |

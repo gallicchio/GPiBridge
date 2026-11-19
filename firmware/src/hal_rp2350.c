@@ -128,7 +128,7 @@ void hal_init(void)
 }
 
 /* How long the transceivers' 5 V takes to fall once Q1 opens: 2.6 uF into the
- * two chips and the BUS LED.  Not yet measured on a board (BRINGUP.md, stage 1b). */
+ * two chips and the BUS LED.  Measured on A1: below 1 V in 0.36 ms, 0.2 V in 2.9 ms. */
 #define RAIL_FALL_US 3000
 
 static void release_all(void)
@@ -145,9 +145,18 @@ static void release_all(void)
  * unpowered chips is some 50 uA a pin, for the moment the 5 V takes to rise or
  * fall.  With this, a board that powers up only to find another controller
  * on the bus (gpib.c) leaves again without a mark on any line. */
+/* And never on again within 0.5 s of going off.  A margin, not a need: measured on A1
+ * (2026-11-18, REVB.md 2.14) the 5 V is below 0.2 V 2.9 ms after Q1 opens, and the bus
+ * lines stay clean through the fall and the next rise.  Added while a 33120A that stops
+ * on its own was blamed on fast restarts. */
+#define MIN_OFF_US 500000
+static uint64_t off_at;                  /* when it was last switched off; 0: not since reset */
+
 void hal_power(bool on)
 {
     if (on) {
+        while (off_at && time_us_64() - off_at < MIN_OFF_US)
+            usb_poll();                  /* USB and the watchdog still served */
         powered = true;
         release_all();                   /* pull-ups, input buffers on */
         gpio_put(PIN_BUS_PWR_EN, 1);     /* GPiBridge: the transceivers' 5 V; the Lite: its BUS LED */
@@ -164,6 +173,8 @@ void hal_power(bool on)
         gpio_put(PIN_BUS_PWR_EN, 0);
         busy_wait_us_32(RAIL_FALL_US);
     }
+    if (powered && !lite)
+        off_at = time_us_64();
     powered = false;
     gpio_put(PIN_BUS_PWR_EN, 0);
     release_all();                       /* GPiBridge: pull-downs, input buffers off (E9); the Lite: nothing at all */

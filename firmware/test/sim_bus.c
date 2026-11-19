@@ -303,6 +303,7 @@ static void command_byte(uint8_t b)
 }
 
 uint64_t sim_busy_us;                    /* after a message's first byte, not ready this long */
+int sim_power_offs;                      /* the transceivers' 5 V switched off */
 static uint64_t busy_until;
 static uint64_t sim_clock(void);
 
@@ -458,7 +459,12 @@ void hal_init(void)
     ctl_data = 0;
     powered = controller = talking = false;
 }
-void hal_power(bool on) { powered = on; }
+void hal_power(bool on)
+{
+    if (powered && !on)
+        sim_power_offs++;
+    powered = on;
+}
 void hal_controller(bool on) { controller = on; }
 void hal_talk(bool on)
 {
@@ -551,6 +557,7 @@ void sim_reset(void)
     sim_present = true;
     sim_addr = SIM_ADDR;
     sim_busy_us = busy_until = 0;
+    sim_power_offs = 0;
 }
 
 bool sim_ren(void) { return line(L_REN); }

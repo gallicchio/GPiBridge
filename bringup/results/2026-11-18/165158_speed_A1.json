@@ -1,0 +1,351 @@
+{
+ "step": "speed",
+ "board": "A1",
+ "at": "2026-11-18 16:51:58",
+ "sim": false,
+ "ok": true,
+ "checks": [
+  {
+   "what": "queries: no timeout and no \"no listener\"",
+   "ok": true,
+   "got": {
+    "bus": "controller",
+    "bytes_out": 48059,
+    "bytes_in": 23815,
+    "timeouts": 0,
+    "no_listener": 0
+   },
+   "want": {
+    "bus": "controller",
+    "bytes_out": 39859,
+    "bytes_in": 10515,
+    "timeouts": 0,
+    "no_listener": 0
+   }
+  },
+  {
+   "what": "settings back to back: *OPC? answers and the last one holds",
+   "ok": true,
+   "got": 5048.0,
+   "want": 5048.0
+  },
+  {
+   "what": "every setting read back as written",
+   "ok": true,
+   "got": [],
+   "want": []
+  },
+  {
+   "what": "every setting read back in the same message",
+   "ok": true,
+   "got": [],
+   "want": []
+  },
+  {
+   "what": "the instrument logged no error for any of it",
+   "ok": true,
+   "got": [],
+   "want": []
+  },
+  {
+   "what": "a message ended by the board's EOI alone is understood",
+   "ok": true,
+   "got": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0",
+   "want": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  {
+   "what": "SRQ: raised by the instrument, read in the serial poll (RQS and ESB), let go after it",
+   "ok": true,
+   "got": {
+    "before": "0",
+    "after_opc": "1",
+    "spoll": "96",
+    "after_spoll": "0"
+   },
+   "want": {
+    "before": "0",
+    "after_opc": "1",
+    "spoll": "96 or more",
+    "after_spoll": "0"
+   }
+  },
+  {
+   "what": "nobody at GPIB 30: an error that says so",
+   "ok": true,
+   "got": "GPIB 30 via ttyACM0: timed out after b'' (the GPiBridge found no listener at GPIB 30: is the instrument on, cabled, and at that address?)",
+   "want": "the GPiBridge found no listener ..."
+  },
+  {
+   "what": "nobody at GPIB 30: counted by the board",
+   "ok": true,
+   "got": null,
+   "want": null
+  },
+  {
+   "what": "nobody: the next query gets its own answer",
+   "ok": true,
+   "got": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0",
+   "want": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  {
+   "what": "read_nothing: the next query gets its own answer",
+   "ok": true,
+   "got": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0",
+   "want": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  {
+   "what": "refused: the next query gets its own answer",
+   "ok": true,
+   "got": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0",
+   "want": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  {
+   "what": "answer_left_in_the_port: the next query gets its own answer",
+   "ok": true,
+   "got": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0",
+   "want": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  {
+   "what": "timeout_mid_answer: the next query gets its own answer",
+   "ok": true,
+   "got": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0",
+   "want": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  {
+   "what": "signal_mid_query: the next query gets its own answer",
+   "ok": true,
+   "got": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0",
+   "want": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  {
+   "what": "the board answers its own query after all that",
+   "ok": true,
+   "got": null,
+   "want": null
+  },
+  {
+   "what": "unread_query_then_clear: the next query gets its own answer",
+   "ok": true,
+   "got": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0",
+   "want": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  {
+   "what": "chain_of_80: the next query gets its own answer",
+   "ok": true,
+   "got": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0",
+   "want": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  {
+   "what": "junk_5000: the next query gets its own answer",
+   "ok": true,
+   "got": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0",
+   "want": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  {
+   "what": "the capture holds the query and its answer",
+   "ok": true,
+   "got": 53,
+   "want": "at least 41"
+  },
+  {
+   "what": "the 33120A left as it was found",
+   "ok": true,
+   "got": "\"DC 1.000000000000E+03,+1.000000E-01,+0.000000E+00\"",
+   "want": {
+    "appl": "\"DC 1.000000000000E+03,+1.000000E-01,+0.000000E+00\""
+   }
+  }
+ ],
+ "notes": [
+  "speed and fault tests: not a bring-up stage"
+ ],
+ "address": 10,
+ "sections": [
+  "adapter",
+  "query",
+  "set",
+  "lines",
+  "faults",
+  "capture"
+ ],
+ "idn": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0",
+ "adapter": "GPiBridge GPIB-USB controller version 0.4.4",
+ "model": "33120A",
+ "counters_start": {
+  "bus": "controller",
+  "bytes_out": 39818,
+  "bytes_in": 10449,
+  "timeouts": 0,
+  "no_listener": 0
+ },
+ "found": {
+  "appl": "\"DC 1.000000000000E+03,+1.000000E-01,+0.000000E+00\""
+ },
+ "errors_found": [],
+ "adapter_ver": {
+  "n": 200,
+  "per_s": 2392.7,
+  "median_ms": 0.24,
+  "p95_ms": 1.76,
+  "max_ms": 1.77
+ },
+ "adapter_status": {
+  "n": 100,
+  "per_s": 678.4,
+  "median_ms": 1.42,
+  "p95_ms": 1.58,
+  "max_ms": 1.83
+ },
+ "queries": {
+  "*OPC?": {
+   "n": 200,
+   "per_s": 230.2,
+   "median_ms": 4.42,
+   "p95_ms": 4.6,
+   "max_ms": 5.83
+  },
+  "APPLy?": {
+   "n": 200,
+   "per_s": 28.7,
+   "median_ms": 34.43,
+   "p95_ms": 35.95,
+   "max_ms": 37.36
+  },
+  "*IDN?": {
+   "n": 50,
+   "per_s": 44.8,
+   "median_ms": 22.1,
+   "p95_ms": 23.47,
+   "max_ms": 24.11
+  },
+  "VOLT?": {
+   "n": 50,
+   "per_s": 90.9,
+   "median_ms": 11.0,
+   "p95_ms": 11.13,
+   "max_ms": 11.49
+  }
+ },
+ "set_back_to_back": {
+  "n": 200,
+  "writes_s": 12.499,
+  "until_opc_s": 15.576,
+  "per_s": 12.8
+ },
+ "set_with_opc": {
+  "n": 200,
+  "per_s": 12.4,
+  "median_ms": 81.0,
+  "p95_ms": 81.58,
+  "max_ms": 82.58
+ },
+ "set_then_get": {
+  "n": 500,
+  "per_s": 8.7,
+  "median_ms": 114.51,
+  "p95_ms": 115.99,
+  "max_ms": 117.0
+ },
+ "set_get_one_message": {
+  "n": 300,
+  "per_s": 8.8,
+  "median_ms": 114.16,
+  "p95_ms": 115.58,
+  "max_ms": 116.58
+ },
+ "counters_after_set": {
+  "bus": "controller",
+  "bytes_out": 102186,
+  "bytes_in": 66684,
+  "timeouts": 0,
+  "no_listener": 0
+ },
+ "srq": {
+  "before": "0",
+  "after_opc": "1",
+  "spoll": "96",
+  "after_spoll": "0"
+ },
+ "faults": {
+  "nobody": {
+   "error": "GPIB 30 via ttyACM0: timed out after b'' (the GPiBridge found no listener at GPIB 30: is the instrument on, cabled, and at that address?)",
+   "s": 1.5,
+   "next_query": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  "read_nothing": {
+   "error": "GPIB 10 via ttyACM0: timed out after b''",
+   "next_query": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  "refused": {
+   "errors": [
+    "-222,\"Data out of range; frequency\"",
+    "-113,\"Undefined header\""
+   ],
+   "next_query": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  "answer_left_in_the_port": {
+   "next_query": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  "timeout_mid_answer": {
+   "timed_out": true,
+   "next_query": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  "signal_mid_query": {
+   "cut": true,
+   "next_query": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  "unread_query_then_clear": {
+   "next_query": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  "chain_of_80": {
+   "bytes": 2326,
+   "s": 3.685,
+   "reply": "\"SIN 3.142500000000E+03,+1.000000E-01,+0.000000E+00\"",
+   "next_query": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  "junk_5000": {
+   "s": 0.0,
+   "next_query": "HEWLETT-PACKARD,33120A,0,8.0-5.0-1.0"
+  },
+  "errors_left": [
+   "-410,\"Query INTERRUPTED\"",
+   "-420,\"Query UNTERMINATED\"",
+   "-112,\"Program mnemonic too long\""
+  ]
+ },
+ "counters_after_faults": {
+  "bus": "controller",
+  "bytes_out": 110131,
+  "bytes_in": 67376,
+  "timeouts": 7,
+  "no_listener": 1
+ },
+ "capture": "results/2026-11-18/165158_speed_A1_idn.vcd",
+ "handshake": {
+  "bytes": 53,
+  "span_ms": 22.81,
+  "board_accepts_a_byte": {
+   "n": 37,
+   "median_us": 0.8,
+   "max_us": 1.0
+  },
+  "device_accepts_a_byte": {
+   "n": 16,
+   "median_us": 3.3,
+   "max_us": 3.8
+  },
+  "device_talker_delay": {
+   "n": 36,
+   "median_us": 93.8,
+   "max_us": 253.7
+  },
+  "longest_wait_ms": 18.3
+ },
+ "counters_end": {
+  "bus": "controller",
+  "bytes_out": 110205,
+  "bytes_in": 67465,
+  "timeouts": 7,
+  "no_listener": 1
+ }
+}
